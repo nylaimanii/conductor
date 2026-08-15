@@ -25,6 +25,9 @@ from pettingzoo.utils.env import ParallelEnv
 
 from line_config import LineConfig
 
+# seconds of real time per sim tick, kept in step with mta_data.TICK_SECONDS
+TICK_SECONDS = 10.0
+
 OBS_DIM = 12
 
 # Indices into the observation vector. Named so the trajectory dumper can
@@ -135,6 +138,11 @@ class HeadwayEnv(ParallelEnv):
         self.total_wait_ticks = 0
         self.n_arrived = 0
         self.n_boarded = 0
+
+        # every individual passenger's wait at the moment they board.
+        # the mean hides the thing bunching actually does to people: a few
+        # riders eating enormous gaps. this is what the tail stats read.
+        self.boarded_waits: List[int] = []
         self.n_stranded_events = 0
         self.tick_stranded = 0
 
@@ -241,7 +249,7 @@ class HeadwayEnv(ParallelEnv):
                 continue
             self.onboard[i, dest] += 1
             budget -= 1
-            self.total_wait_ticks += waited
+            self.boarded_waits.append(int(waited))
             self.n_boarded += 1
         self.queues[station] = kept
 
@@ -551,6 +559,35 @@ class HeadwayEnv(ParallelEnv):
                 for o in obs
             ],
         })
+
+    def all_waits(self) -> np.ndarray:
+        """
+        One entry per passenger who ever arrived.
+
+        Riders still standing on a platform when the episode ends are
+        included at the wait they had accumulated. That censors them, so
+        their true wait was longer, but leaving them out entirely would let
+        a policy look good by stranding people.
+        """
+        stranded = [e[1] for q in self.queues for e in q]
+        return np.array(self.boarded_waits + stranded, dtype=np.float64)
+
+    def wait_percentiles(self) -> dict:
+        """p50, p90, p95 and max, plus the share waiting over 10 minutes."""
+        w = self.all_waits()
+        if len(w) == 0:
+            return {"p50": 0.0, "p90": 0.0, "p95": 0.0, "max": 0.0,
+                    "n": 0, "over_10min_pct": 0.0}
+        # 10 real minutes at the sim's tick length
+        over = 10.0 * 60.0 / TICK_SECONDS
+        return {
+            "p50": float(np.percentile(w, 50)),
+            "p90": float(np.percentile(w, 90)),
+            "p95": float(np.percentile(w, 95)),
+            "max": float(w.max()),
+            "n": int(len(w)),
+            "over_10min_pct": float(100.0 * np.mean(w > over)),
+        }
 
     def mean_wait(self) -> float:
         """
