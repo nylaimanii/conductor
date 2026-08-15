@@ -433,7 +433,12 @@ if (!process.env.FORCE_OVERWRITE) {
       if (!existsSync(path)) continue
       try {
         const doc = JSON.parse(readFileSync(path, 'utf8'))
-        if (doc?.stations?.[0]?.name !== cfg.names[0]) foreign.push(`${line}_${tag}`)
+        // Name alone is not enough: sim's real L also starts at 8 Av, so a
+        // name-only check waves the real file straight through. Station count
+        // is the discriminator that actually differs.
+        const sameName = doc?.stations?.[0]?.name === cfg.names[0]
+        const sameShape = doc?.stations?.length === cfg.names.length
+        if (!sameName || !sameShape) foreign.push(`${line}_${tag}`)
       } catch {
         // Unreadable is not evidence of anything, leave it alone.
       }

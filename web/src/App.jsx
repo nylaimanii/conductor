@@ -14,7 +14,7 @@ import { easeOutCubic, clamp01 } from './easing.js'
 import { drawScene } from './scene.js'
 import { drawRibbons, ribbonHeight } from './ribbons.js'
 import { drawSparkline } from './sparkline.js'
-import { runCv } from './headway.js'
+import { runCv, holdRate } from './headway.js'
 import Compare from './Compare.jsx'
 
 function ViewSwitch({ view, setView }) {
@@ -46,6 +46,53 @@ const CURVE_LADDER = [
   { tag: '050', steps: 10_000_000 },
   { tag: '100', steps: 20_000_000 },
 ]
+
+// Reference points for the two headline comparisons.
+//
+// Baseline is the published timetable, which is the number that matters to a
+// rider and so is the headline. Untrained is the policy at zero timesteps,
+// which is the number that measures learning and so belongs on the scrubber.
+// Both are averaged across the network. Variance reduction is deliberately not
+// offered anywhere: it is the flattering number and reads as cherry picking.
+function useReferenceCvs() {
+  const [refs, setRefs] = useState({ baseline: null, untrained: null, untrainedHold: null })
+  useEffect(() => {
+    let alive = true
+    const collect = () => {
+      const avg = (tag) => {
+        const docs = LINE_IDS.map((l) => peekRun(l, tag)).filter(Boolean)
+        if (docs.length < LINE_IDS.length) return null
+        return docs.reduce((a, d) => a + runCv(d), 0) / docs.length
+      }
+      const untrainedDocs = LINE_IDS.map((l) => peekRun(l, '000')).filter(Boolean)
+      if (alive)
+        setRefs({
+          baseline: avg('baseline'),
+          untrained: avg('000'),
+          untrainedHold:
+            untrainedDocs.length === LINE_IDS.length
+              ? untrainedDocs.reduce((a, d) => a + holdRate(d), 0) / untrainedDocs.length
+              : null,
+        })
+    }
+    const start = () => {
+      for (const line of LINE_IDS) {
+        for (const tag of ['baseline', '000']) {
+          loadRun(line, tag).then(collect).catch(() => {})
+        }
+      }
+    }
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(start, { timeout: 2500 })
+      : setTimeout(start, 900)
+    return () => {
+      alive = false
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle)
+      else clearTimeout(idle)
+    }
+  }, [])
+  return refs
+}
 
 function useCvCurve() {
   const [points, setPoints] = useState([])
@@ -100,6 +147,7 @@ export default function App() {
   const [view, setView] = useState('network')
   const narrow = useIsNarrow()
   const curve = useCvCurve()
+  const refs = useReferenceCvs()
   // 'all' or a line id. Desktop defaults to the whole network: the transfer
   // moment is four lines the policy never trained on equalizing at once, and
   // that only reads if they are on screen together. Narrow screens cannot fit
@@ -235,6 +283,12 @@ export default function App() {
     return () => clearInterval(id)
   }, [])
 
+  // Headline: how far below the published timetable the spread now sits.
+  // Scrubber: how far below the untrained policy, which is what training bought.
+  const pct = (from, to) => (from && from > 0 && to !== null ? ((from - to) / from) * 100 : null)
+  const vsTimetable = pct(refs.baseline, hero.cv)
+  const vsUntrained = pct(refs.untrained, hero.cv)
+
   if (view === 'compare') {
     return (
       <div className="app">
@@ -296,14 +350,26 @@ export default function App() {
         <div className="hero">
           <div className="hero-label">headway spread, cv</div>
           <div className="hero-value mono">{hero.cv === null ? '--' : hero.cv.toFixed(3)}</div>
-          <div className="hero-sub">lower is evenly spaced</div>
+          <div className="hero-sub">
+            {vsTimetable === null
+              ? 'lower is evenly spaced'
+              : vsTimetable >= 0
+                ? `${vsTimetable.toFixed(0)}% below the timetable`
+                : `${Math.abs(vsTimetable).toFixed(0)}% above the timetable`}
+          </div>
         </div>
         <div className="hero">
           <div className="hero-label">hold rate</div>
           <div className="hero-value mono">
             {hero.hold === null ? '--' : `${(hero.hold * 100).toFixed(0)}%`}
           </div>
-          <div className="hero-sub">the policy's only action</div>
+          <div className="hero-sub">
+            {refs.untrainedHold === null || hero.hold === null
+              ? "the policy's only action"
+              : hero.hold >= refs.untrainedHold * 0.8
+                ? 'held at random, not aimed'
+                : 'fewer holds, better aimed'}
+          </div>
         </div>
         <div
           className="ribbons"
@@ -341,6 +407,9 @@ export default function App() {
       <p className="note">
         training progress · {timestepsFor(scrub).toLocaleString('en-US')} /{' '}
         {TOTAL_TIMESTEPS.toLocaleString('en-US')} timesteps
+        {vsUntrained === null
+          ? ''
+          : ` · headway spread ${Math.max(0, vsUntrained).toFixed(0)}% below untrained`}
       </p>
     </div>
   )

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useDprCanvas } from './useDprCanvas.js'
 import { LINE_IDS, loadRun, peekRun } from './runs.js'
 import { sampleLine } from './sample.js'
+import { runCv, holdRate } from './headway.js'
 import { drawScene } from './scene.js'
 import { drawRibbons, ribbonHeight } from './ribbons.js'
 
@@ -60,7 +61,8 @@ export default function Compare({ playing, speed }) {
   // Only the two files this comparison needs, fetched when the line changes.
   useEffect(() => {
     let alive = true
-    for (const tag of ['baseline', '100']) {
+    // baseline drives the cv comparison, 000 drives the hold rate comparison.
+    for (const tag of ['baseline', '000', '100']) {
       if (peekRun(line, tag)) continue
       loadRun(line, tag)
         .then(() => alive && bump((n) => n + 1))
@@ -93,10 +95,15 @@ export default function Compare({ playing, speed }) {
       const l = leftRef.current
       const r = rightRef.current
       if (!l || !r) return
+      const untrained = peekRun(line, '000')
       setStats({
         cvL: l.cvRun,
         cvR: r.cvRun,
-        holdL: l.holdRun,
+        // Hold rate is only meaningful against the untrained policy. The
+        // timetable barely holds at all, so comparing against it would say
+        // nothing about what the policy learned.
+        holdUntrained: untrained ? holdRate(untrained) : null,
+        cvUntrained: untrained ? runCv(untrained) : null,
         holdR: r.holdRun,
         waitL: l.meanWait,
         waitR: r.meanWait,
@@ -106,10 +113,17 @@ export default function Compare({ playing, speed }) {
     return () => clearInterval(id)
   }, [])
 
-  // The headline figure is the drop in headway spread. Wait time follows from
-  // it, so it is reported underneath rather than in place of it.
+  // Headline is the drop against the published timetable, which is the number a
+  // rider would feel. The drop against the untrained policy is reported too,
+  // clearly labelled as the learning figure, so neither can be mistaken for the
+  // other. Variance reduction is never shown: it is the largest of the three and
+  // reads as cherry picking.
   const cvDrop =
     stats && stats.cvL > 0 ? ((stats.cvL - stats.cvR) / stats.cvL) * 100 : null
+  const cvVsUntrained =
+    stats && stats.cvUntrained > 0
+      ? ((stats.cvUntrained - stats.cvR) / stats.cvUntrained) * 100
+      : null
 
   return (
     <div className="compare">
@@ -144,24 +158,35 @@ export default function Compare({ playing, speed }) {
 
       <div className="metrics">
         <div className="metric metric-hero">
-          <div className="metric-label">headway spread, cv</div>
+          <div className="metric-label">headway spread, cv · vs timetable</div>
           <div className="metric-pair mono">
             <span className="was">{stats ? stats.cvL.toFixed(3) : '--'}</span>
             <span className="arrow">to</span>
             <span className="now">{stats ? stats.cvR.toFixed(3) : '--'}</span>
           </div>
           <div className="metric-delta mono">
-            {cvDrop === null ? '' : `${cvDrop.toFixed(0)}% more even`}
+            {cvDrop === null
+              ? ''
+              : cvDrop >= 0
+                ? `${cvDrop.toFixed(0)}% more even than the timetable`
+                : `${Math.abs(cvDrop).toFixed(0)}% less even than the timetable`}
+            {cvVsUntrained === null ? '' : ` · ${cvVsUntrained.toFixed(0)}% vs untrained`}
           </div>
         </div>
         <div className="metric metric-hero">
-          <div className="metric-label">hold rate</div>
+          <div className="metric-label">hold rate · untrained to trained</div>
           <div className="metric-pair mono">
-            <span className="was">{stats ? `${(stats.holdL * 100).toFixed(0)}%` : '--'}</span>
+            <span className="was">
+              {stats && stats.holdUntrained !== null
+                ? `${(stats.holdUntrained * 100).toFixed(0)}%`
+                : '--'}
+            </span>
             <span className="arrow">to</span>
             <span className="now">{stats ? `${(stats.holdR * 100).toFixed(0)}%` : '--'}</span>
           </div>
-          <div className="metric-delta mono">the policy's only action</div>
+          <div className="metric-delta mono">
+            random holding to selective holding. holding too eagerly is catastrophic.
+          </div>
         </div>
         <div className="metric">
           <div className="metric-label">mean wait</div>
@@ -171,7 +196,11 @@ export default function Compare({ playing, speed }) {
             <span className="now">{stats ? stats.waitR.toFixed(2) : '--'}</span>
           </div>
           <div className="metric-delta mono">
-            {stats ? `${stats.improvement.toFixed(1)}% shorter` : ''}
+            {stats
+              ? stats.improvement >= 0
+                ? `${stats.improvement.toFixed(1)}% shorter`
+                : `${Math.abs(stats.improvement).toFixed(1)}% longer`
+              : ''}
           </div>
         </div>
       </div>
