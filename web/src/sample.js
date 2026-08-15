@@ -7,6 +7,7 @@ import {
   gapsOf,
   cvOf,
   runCv,
+  holdRate,
   directionsFor,
   ticksToMove,
 } from './headway.js'
@@ -72,6 +73,9 @@ export function sampleLine(run, tickFloat) {
     circuit: C,
     cvNow: cvOf(gaps),
     cvRun: runCv(run),
+    holdRun: holdRate(run),
+    // How many trains are being held right now, for the live readout.
+    holdingNow: trains.filter((t) => t.holding).length,
     meanWait: run.metrics.mean_wait,
     baselineWait: run.metrics.baseline_wait,
     improvement: run.metrics.improvement_pct,

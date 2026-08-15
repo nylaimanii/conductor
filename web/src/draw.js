@@ -49,6 +49,24 @@ export function drawTrain(ctx, opts) {
   ctx.save()
   ctx.translate(x, y + bob)
 
+  // THE ACTION, MADE VISIBLE.
+  //
+  // Holding is the only thing the policy ever does, and without a mark it is
+  // indistinguishable from a train that happens to be stopped. The ring pulses
+  // outward and fades, so a held train reads as being acted upon rather than
+  // as merely parked. Drawn in ink rather than in one of the wait colors so it
+  // cannot be misread as a passenger state.
+  if (opts.holding) {
+    const pulse = (Math.sin(t * 3.4 + ph * 2) * 0.5 + 0.5)
+    const grow = 3.5 + pulse * 3.5
+    capsule(ctx, 0, 0, L + grow * 2, T + grow * 2, angle)
+    ctx.setLineDash([2.5, 2.5])
+    ctx.lineWidth = 1.6
+    ctx.strokeStyle = `rgba(22,24,26,${0.5 - pulse * 0.3})`
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
+
   // A train sits on top of a line of its own color, so without a halo it reads
   // as a thickening of the line rather than as a vehicle. The tile colored
   // stroke cuts it free of the track before the ink outline goes on.

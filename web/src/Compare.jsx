@@ -96,6 +96,8 @@ export default function Compare({ playing, speed }) {
       setStats({
         cvL: l.cvRun,
         cvR: r.cvRun,
+        holdL: l.holdRun,
+        holdR: r.holdRun,
         waitL: l.meanWait,
         waitR: r.meanWait,
         improvement: r.improvement,
@@ -151,6 +153,15 @@ export default function Compare({ playing, speed }) {
           <div className="metric-delta mono">
             {cvDrop === null ? '' : `${cvDrop.toFixed(0)}% more even`}
           </div>
+        </div>
+        <div className="metric metric-hero">
+          <div className="metric-label">hold rate</div>
+          <div className="metric-pair mono">
+            <span className="was">{stats ? `${(stats.holdL * 100).toFixed(0)}%` : '--'}</span>
+            <span className="arrow">to</span>
+            <span className="now">{stats ? `${(stats.holdR * 100).toFixed(0)}%` : '--'}</span>
+          </div>
+          <div className="metric-delta mono">the policy's only action</div>
         </div>
         <div className="metric">
           <div className="metric-label">mean wait</div>

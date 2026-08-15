@@ -160,6 +160,7 @@ export function drawScene(ctx, opts) {
         id: `${s.line}:${i}`,
         t,
         squash,
+        holding: tr.holding,
       })
     }
   }

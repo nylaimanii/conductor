@@ -131,6 +131,31 @@ export function cvOf(gaps) {
   return Math.sqrt(varr) / mean
 }
 
+const holdCache = new WeakMap()
+
+// Fraction of train ticks the policy spent holding a train at a platform.
+//
+// This is the policy itself rather than a consequence of it. Holding is the
+// only action the agent has, so an untrained run reads exactly zero and a
+// trained one reads whatever it learned to use. It comes straight from the
+// holding flag the contract already carries, so sim's real values land here
+// with no change on this side.
+export function holdRate(doc) {
+  const hit = holdCache.get(doc)
+  if (hit !== undefined) return hit
+  let held = 0
+  let total = 0
+  for (const tick of doc.ticks) {
+    for (const tr of tick.trains) {
+      total++
+      if (tr.holding) held++
+    }
+  }
+  const v = total ? held / total : 0
+  holdCache.set(doc, v)
+  return v
+}
+
 // Run level cv, averaged over every tick. Memoized: this walks the whole run.
 export function runCv(doc) {
   const hit = cvCache.get(doc)

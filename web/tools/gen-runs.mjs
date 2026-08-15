@@ -19,7 +19,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const OUT_DIR = resolve(HERE, '../public/runs')
+const OUT_DIR = process.env.OUT_DIR || resolve(HERE, '../public/runs')
 
 // Deterministic PRNG so regenerating does not churn every file.
 function mulberry32(seed) {
@@ -139,8 +139,11 @@ const LINES = {
 // Run configuration. skill drives how well the policy spaces its trains.
 
 const RUNS = {
+  // An untrained policy has not learned to hold at all, so its hold rate is
+  // exactly zero rather than merely small. It runs every train as soon as
+  // boarding finishes, which is what lets the fleet bunch.
   baseline: { label: 'baseline', skill: 0.0 },
-  '000': { label: 'untrained', skill: 0.06 },
+  '000': { label: 'untrained', skill: 0.0 },
   '025': { label: 'early training', skill: 0.42 },
   '050': { label: 'mid training', skill: 0.71 },
   '100': { label: 'trained', skill: 0.96 },
@@ -149,13 +152,27 @@ const RUNS = {
 const TAGS_FOR = (line) =>
   line === 'L' ? ['baseline', '000', '025', '050', '100'] : ['baseline', '000', '100']
 
+const envNum = (k, d) => (process.env[k] === undefined ? d : Number(process.env[k]))
+
 const SIM_TICKS = 400 // every 2nd is written, per the contract
-// Ticks simulated before anything is recorded. Without this the run starts
-// with empty platforms, every metric is measured mid transient, and the first
-// thing the judge sees is stations with nobody on them.
-const WARMUP_TICKS = 320
+// Ticks simulated before anything is recorded. Two jobs: platforms start
+// populated rather than empty, and the uncontrolled fleet has time to actually
+// bunch. Bunching is a slow instability, so a short warmup shows an untrained
+// line that has not gone wrong yet and makes training look like it did nothing.
+const WARMUP_TICKS = envNum('WARMUP_TICKS', 900)
 const TICK_MINUTES = 0.1 // one tick is six seconds
-const DWELL_TICKS = 4
+// Platform stop, in ticks. NOM is a normal station stop; the policy may
+// shorten it toward MIN to make up time or extend it toward MAX to hold.
+// Overridable so the tuning sweep can search them without editing this file.
+const DWELL_NOM = envNum('DWELL_NOM', 4)
+const DWELL_MIN = envNum('DWELL_MIN', 2)
+const DWELL_MAX = envNum('DWELL_MAX', 40)
+const HOLD_GAIN = envNum('HOLD_GAIN', 10)
+// Ticks of dwell per boarding passenger. The bunching feedback lives here: a
+// train that slips back loads a bigger crowd, which costs it more time. Too
+// small and the fleet is unconditionally stable, so an untrained policy never
+// bunches and there is nothing for training to fix.
+const BOARD_TICKS = envNum('BOARD_TICKS', 1.3)
 
 const lerp = (a, b, u) => a + (b - a) * u
 const round2 = (v) => Math.round(v * 100) / 100
@@ -186,24 +203,28 @@ function simulate(line, cfg, tag) {
   const baseSpeed = 0.052
   const targetGap = CIRCUIT / cfg.trains
 
-  // Untrained trains start clumped in pairs. Trained trains start evenly
-  // spaced. Everything between is a blend.
+  // Every run of a line starts from the same evenly spaced fleet and faces the
+  // same disturbance, drawn from a world seed that ignores the tag. Only the
+  // policy differs.
+  //
+  // Damping the disturbance as the policy improves, or starting the untrained
+  // fleet pre bunched, would both bake the result into the setup: the trained
+  // run would look better because it was handed an easier world, not because it
+  // did anything. Bunching has to emerge from the untrained run on its own.
+  const world = mulberry32(seedFrom(`world:${line}`))
   const trains = []
   for (let i = 0; i < cfg.trains; i++) {
-    const even = (i * CIRCUIT) / cfg.trains
-    const group = Math.floor(i / 2)
-    const nGroups = Math.ceil(cfg.trains / 2)
-    const bunched = (group * CIRCUIT) / nGroups + (i % 2) * 0.6
     trains.push({
-      c: lerp(bunched, even, skill) % CIRCUIT,
-      onboard: Math.floor(rnd() * cfg.capacity * 0.4),
+      c: (i * CIRCUIT) / cfg.trains,
+      onboard: Math.floor(world() * cfg.capacity * 0.4),
       dwell: 0,
+      hold: 0,
       holding: false,
-      // Per train speed wobble. This is what makes untrained trains catch each
-      // other and bunch. It is damped hard once the policy has learned.
-      wobAmp: lerp(0.42, 0.04, skill),
-      wobFreq: 0.012 + rnd() * 0.02,
-      wobPhase: rnd() * Math.PI * 2,
+      // Per train speed variation: traffic, signals, driver. A property of the
+      // railway, identical across every run of this line.
+      wobAmp: 0.3,
+      wobFreq: 0.012 + world() * 0.02,
+      wobPhase: world() * Math.PI * 2,
     })
   }
 
@@ -250,36 +271,17 @@ function simulate(line, cfg, tag) {
 
       if (tr.dwell > 0) {
         tr.dwell--
+        // The extra ticks beyond a normal stop are the ones the policy chose.
+        if (tr.hold > 0) {
+          tr.hold--
+          tr.holding = true
+        }
         continue
       }
 
-      let v = baseSpeed * (1 + tr.wobAmp * Math.sin(k * tr.wobFreq + tr.wobPhase))
-
-      // The learned behavior: hold at the platform when you are too close to
-      // the train ahead, stretch when you are too far. This is the control law
-      // the policy is standing in for, so its strength scales with skill.
-      // Proportional control on the gap to the train ahead. Symmetric on
-      // purpose: it slows when too close and speeds up when too far by the
-      // same factor, so it equalizes headways without inflating the mean.
-      // A slow-only rule evens the gaps but stretches average headway, which
-      // makes the trained run score worse than the half trained one.
-      if (skill > 0.2) {
-        let gap = Infinity
-        for (let j = 0; j < trains.length; j++) {
-          if (j === i) continue
-          let d = trains[j].c - tr.c
-          d = ((d % CIRCUIT) + CIRCUIT) % CIRCUIT
-          if (d > 0 && d < gap) gap = d
-        }
-        if (Number.isFinite(gap)) {
-          const err = (gap - targetGap) / targetGap
-          const kp = lerp(0, 0.85, skill)
-          const factor = Math.max(0.55, Math.min(1.45, 1 + kp * err))
-          v *= factor
-          // The train is actively being held back at the platform.
-          tr.holding = factor < 0.9
-        }
-      }
+      // Speed carries the disturbance only. The policy has exactly one lever
+      // and it is applied at the platform, below.
+      const v = baseSpeed * (1 + tr.wobAmp * Math.sin(k * tr.wobFreq + tr.wobPhase))
 
       // Station arrival is detected in circuit space, not in station space.
       // Every integer of the circuit is one station call: 0..N is the outbound
@@ -306,7 +308,66 @@ function simulate(line, cfg, tag) {
         q[st] -= boarded
         tr.onboard += boarded
         if (recording) boardedTotal += boarded
-        tr.dwell = DWELL_TICKS
+
+        // THE POLICY. The only action the agent has is how long to sit at the
+        // platform. Running too close behind the train in front, it waits and
+        // lets the gap open. Running too far behind, it cuts the stop short and
+        // makes time up. Untrained, it always takes the nominal stop, which is
+        // why an untrained hold rate is zero rather than merely low.
+        //
+        // Holding is deliberately the whole mechanism rather than a continuous
+        // speed trim. A speed trim equalizes the headways just as well but is
+        // invisible on screen and reports a hold rate of zero, so the one thing
+        // the agent actually does would never be visible in the demo.
+        // Boarding takes time, and that is the whole instability. A train that
+        // has slipped back finds a bigger crowd, spends longer loading it, and
+        // slips further back, while the train behind finds an empty platform
+        // and closes up. Left alone this runs away into bunching, which is what
+        // the untrained fleet does. It is also what makes holding worth
+        // learning rather than an arbitrary lever.
+        const loadTicks = boarded * BOARD_TICKS
+
+        // Training buys two things, and neither of them is a bigger lever.
+        //
+        // First, the policy learns to use the action at all: an untrained one
+        // never holds, a trained one holds whenever the situation calls for it.
+        // Second, it learns how long to hold. A half trained policy still holds
+        // often, it just misjudges the duration and overshoots or undershoots.
+        //
+        // Scaling the hold length by skill instead would mean a better policy
+        // simply holds harder, which overshoots and makes the fully trained run
+        // score worse than the half trained one. More training has to mean
+        // better calibrated, not more aggressive.
+        let extra = 0
+        if (skill > 0 && rnd() < skill) {
+          let gap = Infinity
+          for (let j = 0; j < trains.length; j++) {
+            if (j === i) continue
+            let d = trains[j].c - tr.c
+            d = ((d % CIRCUIT) + CIRCUIT) % CIRCUIT
+            if (d > 0 && d < gap) gap = d
+          }
+          if (Number.isFinite(gap)) {
+            // Positive when this train is too close behind the one in front.
+            const err = (targetGap - gap) / targetGap
+            const ideal = HOLD_GAIN * err * DWELL_NOM
+            // Misjudgement of the duration, shrinking as the policy trains.
+            const slip = 1 + (rnd() * 2 - 1) * (1 - skill) * 1.3
+            extra = Math.max(0, Math.round(ideal * slip))
+          }
+        }
+
+        const total = Math.max(
+          DWELL_MIN,
+          Math.min(DWELL_MAX, Math.round(DWELL_NOM + loadTicks) + extra)
+        )
+        tr.dwell = total
+        // A stop the policy chose to extend is a held stop, and the train is
+        // being held for the whole of it, not only for the tail beyond what
+        // boarding needed. That is also what reads on screen: the train is
+        // sitting at the platform under orders for that entire stop.
+        const extended = total > Math.round(DWELL_NOM + loadTicks)
+        tr.hold = extended ? total : 0
       }
     }
 

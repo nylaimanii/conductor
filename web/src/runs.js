@@ -18,6 +18,24 @@ const CHECKPOINTS = {
 
 export const tagFor = (n) => String(n).padStart(3, '0')
 
+// The training run the checkpoints were cut from. The scrubber is a position
+// along this, not a position in a video.
+export const TOTAL_TIMESTEPS = 20_000_000
+
+// The canonical checkpoint ladder. L carries all four, so it is what the
+// training readout reports; the other lines only have the two ends.
+const LADDER = [0, 25, 50, 100]
+
+// Timesteps of training represented by a scrubber value, snapped to the
+// checkpoint actually driving the screen so the number cannot claim a stage
+// that is not being shown.
+export function timestepsFor(u) {
+  const v = Math.max(0, Math.min(100, u * 100))
+  let best = LADDER[0]
+  for (const c of LADDER) if (Math.abs(c - v) < Math.abs(best - v)) best = c
+  return (best / 100) * TOTAL_TIMESTEPS
+}
+
 const cache = new Map()
 const inflight = new Map()
 

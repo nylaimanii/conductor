@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDprCanvas } from './useDprCanvas.js'
-import { LINE_IDS, nearestTagFor, loadRun, peekRun, tagsNeeded } from './runs.js'
+import {
+  LINE_IDS,
+  nearestTagFor,
+  loadRun,
+  peekRun,
+  tagsNeeded,
+  timestepsFor,
+  TOTAL_TIMESTEPS,
+} from './runs.js'
 import { sampleLine, captureOffsets, withOffsets } from './sample.js'
 import { easeOutCubic, clamp01 } from './easing.js'
 import { drawScene } from './scene.js'
@@ -150,7 +158,7 @@ export default function App() {
 
   // Hero figure: mean headway coefficient of variation across the visible
   // lines. Wait time is a consequence of this number, not the other way round.
-  const [hero, setHero] = useState({ cv: null, wait: null })
+  const [hero, setHero] = useState({ cv: null, wait: null, hold: null })
   useEffect(() => {
     const id = setInterval(() => {
       const all = sampledRef.current
@@ -159,6 +167,7 @@ export default function App() {
       setHero({
         cv: s.reduce((a, x) => a + x.cvRun, 0) / s.length,
         wait: s.reduce((a, x) => a + x.meanWait, 0) / s.length,
+        hold: s.reduce((a, x) => a + x.holdRun, 0) / s.length,
       })
     }, 120)
     return () => clearInterval(id)
@@ -219,6 +228,13 @@ export default function App() {
           <div className="hero-value mono">{hero.cv === null ? '--' : hero.cv.toFixed(3)}</div>
           <div className="hero-sub">lower is evenly spaced</div>
         </div>
+        <div className="hero">
+          <div className="hero-label">hold rate</div>
+          <div className="hero-value mono">
+            {hero.hold === null ? '--' : `${(hero.hold * 100).toFixed(0)}%`}
+          </div>
+          <div className="hero-sub">the policy's only action</div>
+        </div>
         <div className="ribbons" style={{ height: ribbonHeight(narrow ? 1 : LINE_IDS.length) }}>
           <canvas ref={ribbonRef} />
         </div>
@@ -245,9 +261,11 @@ export default function App() {
           onChange={(e) => setScrub(Number(e.target.value) / 1000)}
           aria-label="training progress"
         />
-        <div className="scrub-read mono">{Math.round(scrub * 100)}%</div>
       </div>
-      <p className="note">untrained on the left of the bar, fully trained on the right</p>
+      <p className="note">
+        training progress · {timestepsFor(scrub).toLocaleString('en-US')} /{' '}
+        {TOTAL_TIMESTEPS.toLocaleString('en-US')} timesteps
+      </p>
     </div>
   )
 }
