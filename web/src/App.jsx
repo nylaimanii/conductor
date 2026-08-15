@@ -7,6 +7,8 @@ import {
   peekRun,
   tagsNeeded,
   timestepsFor,
+  timestepsForTag,
+  LADDER_TAGS,
   TOTAL_TIMESTEPS,
 } from './runs.js'
 import { sampleLine, captureOffsets, withOffsets } from './sample.js'
@@ -40,40 +42,35 @@ function ViewSwitch({ view, setView }) {
 // never competes with getting trains on screen. Four small files, requested
 // through the same cache as everything else, so nothing is fetched twice.
 const CURVE_LINE = 'L'
-const CURVE_LADDER = [
-  { tag: '000', steps: 0 },
-  { tag: '025', steps: 5_000_000 },
-  { tag: '050', steps: 10_000_000 },
-  { tag: '100', steps: 20_000_000 },
-]
+// Derived from the single ladder definition in runs.js, so re-cutting the
+// checkpoints does not leave the learning curve plotting the old ones.
+const CURVE_LADDER = LADDER_TAGS.map((tag) => ({ tag, steps: timestepsForTag(tag) }))
 
-// Reference points for the two headline comparisons.
+// Idle loads the two reference runs every line needs: the timetable baseline
+// and the untrained policy. The headline compares against both live, at the
+// same tick as what is on screen, so those files have to be resident before
+// the comparison can be made. Also reports the untrained hold rate, which is
+// what tells a trained hold rate apart from a random one.
 //
-// Baseline is the published timetable, which is the number that matters to a
-// rider and so is the headline. Untrained is the policy at zero timesteps,
-// which is the number that measures learning and so belongs on the scrubber.
-// Both are averaged across the network. Variance reduction is deliberately not
-// offered anywhere: it is the flattering number and reads as cherry picking.
-function useReferenceCvs() {
+// Variance reduction is deliberately not offered anywhere: it is the largest
+// of the available figures and reads as cherry picking.
+function useReferenceRuns() {
   const [refs, setRefs] = useState({ baseline: null, untrained: null, untrainedHold: null })
   useEffect(() => {
     let alive = true
     const collect = () => {
-      const avg = (tag) => {
-        const docs = LINE_IDS.map((l) => peekRun(l, tag)).filter(Boolean)
-        if (docs.length < LINE_IDS.length) return null
-        return docs.reduce((a, d) => a + runCv(d), 0) / docs.length
+      const all = (tag) => {
+        const docs = LINE_IDS.map((l) => peekRun(l, tag))
+        return docs.some((d) => !d) ? null : docs
       }
-      const untrainedDocs = LINE_IDS.map((l) => peekRun(l, '000')).filter(Boolean)
-      if (alive)
-        setRefs({
-          baseline: avg('baseline'),
-          untrained: avg('000'),
-          untrainedHold:
-            untrainedDocs.length === LINE_IDS.length
-              ? untrainedDocs.reduce((a, d) => a + holdRate(d), 0) / untrainedDocs.length
-              : null,
-        })
+      const avgCv = (docs) => (docs ? docs.reduce((a, d) => a + runCv(d), 0) / docs.length : null)
+      const untr = all('000')
+      if (!alive) return
+      setRefs({
+        baseline: avgCv(all('baseline')),
+        untrained: avgCv(untr),
+        untrainedHold: untr ? untr.reduce((a, d) => a + holdRate(d), 0) / untr.length : null,
+      })
     }
     const start = () => {
       for (const line of LINE_IDS) {
@@ -147,7 +144,7 @@ export default function App() {
   const [view, setView] = useState('network')
   const narrow = useIsNarrow()
   const curve = useCvCurve()
-  const refs = useReferenceCvs()
+  const refs = useReferenceRuns()
   // 'all' or a line id. Desktop defaults to the whole network: the transfer
   // moment is four lines the policy never trained on equalizing at once, and
   // that only reads if they are on screen together. Narrow screens cannot fit
@@ -170,6 +167,7 @@ export default function App() {
   speedRef.current = speed
   const headRef = useRef(0)
   const sampledRef = useRef([])
+  const liveRef = useRef({ cv: null, baseline: null, untrained: null })
 
   // Lazy load: only the checkpoints the current scrubber value actually
   // brackets are ever requested, and each file is fetched at most once.
@@ -237,6 +235,23 @@ export default function App() {
     }
 
     sampledRef.current = sampled
+
+    // Live headway spread, and the same figure for the timetable and the
+    // untrained policy at this exact moment of the run. Comparing a live value
+    // against a run average would be comparing two different things, and the
+    // untrained runs start evenly spaced and fall apart over the run, so the
+    // two disagree most at the point a judge first looks.
+    const liveCv = (tag) => {
+      const docs = LINE_IDS.map((l) => peekRun(l, tag))
+      if (docs.some((d) => !d)) return null
+      return docs.reduce((a, d) => a + sampleLine(d, head).cvNow, 0) / docs.length
+    }
+    liveRef.current = {
+      cv: sampled.length ? sampled.reduce((a, x) => a + x.cvNow, 0) / sampled.length : null,
+      baseline: liveCv('baseline'),
+      untrained: liveCv('000'),
+    }
+
     drawScene(ctx, {
       width,
       height,
@@ -268,26 +283,38 @@ export default function App() {
 
   // Hero figure: mean headway coefficient of variation across the visible
   // lines. Wait time is a consequence of this number, not the other way round.
-  const [hero, setHero] = useState({ cv: null, wait: null, hold: null })
+  const [hero, setHero] = useState({ cv: null, cvRun: null, wait: null, hold: null })
   useEffect(() => {
+    // Exponential smoothing. The live spread genuinely jitters tick to tick, and
+    // an unsmoothed readout flickers too fast to read without misrepresenting
+    // anything. Slow enough to settle, fast enough to follow a drag.
+    const ease = (prev, next) => (prev === null || next === null ? next : prev + (next - prev) * 0.25)
     const id = setInterval(() => {
       const all = sampledRef.current
       const s = focusRef.current ? all.filter((x) => x.line === focusRef.current) : all
       if (!s.length) return
-      setHero({
-        cv: s.reduce((a, x) => a + x.cvRun, 0) / s.length,
+      const live = liveRef.current
+      setHero((h) => ({
+        // Live, so it agrees with the ribbons directly beneath it.
+        cv: ease(h.cv, focusRef.current ? s[0].cvNow : live.cv),
+        // Run level, for the comparisons. Both the timetable and the untrained
+        // policy start evenly spaced and come apart over the run, so comparing
+        // two single ticks is dominated by where in that decay each happens to
+        // be. It swings tens of percent within a second and changes sign.
+        cvRun: s.reduce((a, x) => a + x.cvRun, 0) / s.length,
         wait: s.reduce((a, x) => a + x.meanWait, 0) / s.length,
         hold: s.reduce((a, x) => a + x.holdRun, 0) / s.length,
-      })
+      }))
     }, 120)
     return () => clearInterval(id)
   }, [])
 
   // Headline: how far below the published timetable the spread now sits.
   // Scrubber: how far below the untrained policy, which is what training bought.
-  const pct = (from, to) => (from && from > 0 && to !== null ? ((from - to) / from) * 100 : null)
-  const vsTimetable = pct(refs.baseline, hero.cv)
-  const vsUntrained = pct(refs.untrained, hero.cv)
+  const pct = (from, to) =>
+    from !== null && from > 0 && to !== null && to !== undefined ? ((from - to) / from) * 100 : null
+  const vsTimetable = pct(refs.baseline, hero.cvRun)
+  const vsUntrained = pct(refs.untrained, hero.cvRun)
 
   if (view === 'compare') {
     return (
@@ -354,8 +381,8 @@ export default function App() {
             {vsTimetable === null
               ? 'lower is evenly spaced'
               : vsTimetable >= 0
-                ? `${vsTimetable.toFixed(0)}% below the timetable`
-                : `${Math.abs(vsTimetable).toFixed(0)}% above the timetable`}
+                ? `${vsTimetable.toFixed(0)}% below the timetable, run average`
+                : `${Math.abs(vsTimetable).toFixed(0)}% above the timetable, run average`}
           </div>
         </div>
         <div className="hero">
@@ -409,7 +436,7 @@ export default function App() {
         {TOTAL_TIMESTEPS.toLocaleString('en-US')} timesteps
         {vsUntrained === null
           ? ''
-          : ` · headway spread ${Math.max(0, vsUntrained).toFixed(0)}% below untrained`}
+          : ` · headway spread ${Math.max(0, vsUntrained).toFixed(0)}% below untrained, run average`}
       </p>
     </div>
   )
