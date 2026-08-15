@@ -50,8 +50,14 @@ N_ENV_COPIES = 8
 #
 # Starting high keeps holding alive long enough to find where it helps, then
 # annealing sharpens the rule instead of leaving it random.
+#
+# The end value is a floor, not zero, on purpose. Annealing all the way down
+# to 0.005 let the collapse creep back in over the last half of training:
+# hold rate fell to 6.7 percent and spacing regressed (cv 0.066 at the 50
+# percent checkpoint, 0.166 by the end). Holding onto a little entropy keeps
+# the policy from drifting back toward never-hold.
 ENT_COEF_START = 0.10
-ENT_COEF_END = 0.005
+ENT_COEF_END = 0.02
 
 
 def make_vec_env(cfg, n_copies=N_ENV_COPIES):
