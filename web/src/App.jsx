@@ -9,6 +9,7 @@ import {
   timestepsFor,
   timestepsForTag,
   LADDER_TAGS,
+  FIRST_TAG,
   TOTAL_TIMESTEPS,
 } from './runs.js'
 import { sampleLine, captureOffsets, withOffsets } from './sample.js'
@@ -55,7 +56,7 @@ const CURVE_LADDER = LADDER_TAGS.map((tag) => ({ tag, steps: timestepsForTag(tag
 // Variance reduction is deliberately not offered anywhere: it is the largest
 // of the available figures and reads as cherry picking.
 function useReferenceRuns() {
-  const [refs, setRefs] = useState({ baseline: null, untrained: null, untrainedHold: null })
+  const [refs, setRefs] = useState({ baseline: null, untrained: null, firstHold: null })
   useEffect(() => {
     let alive = true
     const collect = () => {
@@ -64,18 +65,20 @@ function useReferenceRuns() {
         return docs.some((d) => !d) ? null : docs
       }
       const avgCv = (docs) => (docs ? docs.reduce((a, d) => a + runCv(d), 0) / docs.length : null)
-      const untr = all('000')
+      const untr = all(FIRST_TAG)
       if (!alive) return
       setRefs({
         baseline: avgCv(all('baseline')),
         untrained: avgCv(untr),
-        untrainedHold: untr ? untr.reduce((a, d) => a + holdRate(d), 0) / untr.length : null,
+        firstHold: untr ? untr.reduce((a, d) => a + holdRate(d), 0) / untr.length : null,
       })
     }
     const start = () => {
       for (const line of LINE_IDS) {
-        for (const tag of ['baseline', '000']) {
-          loadRun(line, tag).then(collect).catch(() => {})
+        for (const tag of ['baseline', FIRST_TAG]) {
+          loadRun(line, tag)
+            .then(collect)
+            .catch((err) => console.error('reference run unavailable:', err.message))
         }
       }
     }
@@ -105,7 +108,9 @@ function useCvCurve() {
     }
     const start = () => {
       for (const { tag } of CURVE_LADDER) {
-        loadRun(CURVE_LINE, tag).then(collect).catch(() => {})
+        loadRun(CURVE_LINE, tag)
+          .then(collect)
+          .catch((err) => console.error('curve checkpoint unavailable:', err.message))
       }
     }
     const idle = window.requestIdleCallback
@@ -195,7 +200,7 @@ export default function App() {
     if (playingRef.current) headRef.current += dt * TICKS_PER_SEC * speedRef.current
 
     const u = scrubRef.current
-    const any = peekRun('L', '000')
+    const any = peekRun(LINE_IDS[0], FIRST_TAG)
     const n = any ? any.ticks.length : 200
     if (headRef.current >= n) headRef.current -= n
     const head = headRef.current
@@ -249,7 +254,7 @@ export default function App() {
     liveRef.current = {
       cv: sampled.length ? sampled.reduce((a, x) => a + x.cvNow, 0) / sampled.length : null,
       baseline: liveCv('baseline'),
-      untrained: liveCv('000'),
+      untrained: liveCv(FIRST_TAG),
     }
 
     drawScene(ctx, {
@@ -391,11 +396,18 @@ export default function App() {
             {hero.hold === null ? '--' : `${(hero.hold * 100).toFixed(0)}%`}
           </div>
           <div className="hero-sub">
-            {refs.untrainedHold === null || hero.hold === null
+            {/* Read from the data rather than assumed. Which way this moves
+                depends on where the ladder is cut: a policy can learn to use
+                the action, or learn to stop spending it. Both have been true
+                of this run at different cuts, so the label follows the
+                numbers instead of asserting a direction. */}
+            {refs.firstHold === null || hero.hold === null
               ? "the policy's only action"
-              : hero.hold >= refs.untrainedHold * 0.8
-                ? 'held at random, not aimed'
-                : 'fewer holds, better aimed'}
+              : hero.hold > refs.firstHold * 1.3
+                ? 'learned to hold, and where'
+                : hero.hold < refs.firstHold * 0.7
+                  ? 'fewer holds, better aimed'
+                  : "the policy's only action"}
           </div>
         </div>
         <div

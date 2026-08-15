@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDprCanvas } from './useDprCanvas.js'
-import { LINE_IDS, loadRun, peekRun } from './runs.js'
+import { LINE_IDS, loadRun, peekRun, FIRST_TAG, FINAL_TAG } from './runs.js'
 import { sampleLine } from './sample.js'
 import { runCv, holdRate } from './headway.js'
 import { drawScene } from './scene.js'
@@ -62,7 +62,7 @@ export default function Compare({ playing, speed }) {
   useEffect(() => {
     let alive = true
     // baseline drives the cv comparison, 000 drives the hold rate comparison.
-    for (const tag of ['baseline', '000', '100']) {
+    for (const tag of ['baseline', FIRST_TAG, FINAL_TAG]) {
       if (peekRun(line, tag)) continue
       loadRun(line, tag)
         .then(() => alive && bump((n) => n + 1))
@@ -95,7 +95,7 @@ export default function Compare({ playing, speed }) {
       const l = leftRef.current
       const r = rightRef.current
       if (!l || !r) return
-      const untrained = peekRun(line, '000')
+      const untrained = peekRun(line, FIRST_TAG)
       setStats({
         cvL: l.cvRun,
         cvR: r.cvRun,
@@ -149,7 +149,7 @@ export default function Compare({ playing, speed }) {
         />
         <Side
           line={line}
-          tag="100"
+          tag={FINAL_TAG}
           headRef={headRef}
           label="trained"
           onState={(s) => (rightRef.current = s)}
@@ -185,7 +185,9 @@ export default function Compare({ playing, speed }) {
             <span className="now">{stats ? `${(stats.holdR * 100).toFixed(0)}%` : '--'}</span>
           </div>
           <div className="metric-delta mono">
-            random holding to selective holding. holding too eagerly is catastrophic.
+            {stats && stats.holdUntrained !== null && stats.holdR > stats.holdUntrained
+              ? 'learned to spend the action. holding too eagerly is catastrophic.'
+              : 'random holding to selective holding. holding too eagerly is catastrophic.'}
           </div>
         </div>
         <div className="metric">

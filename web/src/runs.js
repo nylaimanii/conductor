@@ -14,17 +14,26 @@ export const LINE_IDS = ['L', 'G', '7', '1', '6']
 //
 // tag is the {TAG} in /runs/{LINE}_{TAG}.json. baseline is not on the ladder,
 // it is the published timetable the policy is measured against.
+// Training was early stopped at 025, which is the shipped policy, so the
+// denominator is the run that actually happened rather than the one originally
+// planned. The tag numbers are percent of the original 20M run; frac is the
+// position along the shipped run, which is what the scrubber travels.
 const LADDER = [
-  { tag: '000', frac: 0 },
-  { tag: '025', frac: 0.25 },
-  { tag: '050', frac: 0.5 },
-  { tag: '100', frac: 1 },
+  { tag: '001', frac: 0.04 },
+  { tag: '003', frac: 0.12 },
+  { tag: '006', frac: 0.24 },
+  { tag: '012', frac: 0.48 },
+  { tag: '025', frac: 1 },
 ]
 
-// Timesteps in the full training run the ladder is cut from.
-export const TOTAL_TIMESTEPS = 20_000_000
+export const TOTAL_TIMESTEPS = 5_000_000
 
 export const LADDER_TAGS = LADDER.map((c) => c.tag)
+
+// The two ends of the ladder. Named rather than spelled out at each use, so a
+// re-cut does not leave a stale tag hiding in a comparison somewhere.
+export const FIRST_TAG = LADDER[0].tag
+export const FINAL_TAG = LADDER[LADDER.length - 1].tag
 
 // Timesteps a given tag was cut at.
 export const timestepsForTag = (tag) =>
@@ -74,6 +83,15 @@ export function loadRun(line, tag) {
   const p = fetch(`${import.meta.env.BASE_URL}runs/${key}.json`)
     .then((r) => {
       if (!r.ok) throw new Error(`run ${key} returned ${r.status}`)
+      // A dev server with an SPA fallback answers a missing run with 200 and
+      // the index page, so status alone cannot tell a delivered run from an
+      // absent one. Without this check a missing file surfaces only as a JSON
+      // parse error somewhere downstream, and the line silently vanishes from
+      // the diagram with nothing pointing at the cause.
+      const type = r.headers.get('content-type') || ''
+      if (!type.includes('json')) {
+        throw new Error(`run ${key} is missing: server answered with ${type || 'no content type'}`)
+      }
       return r.json()
     })
     .then((doc) => {
