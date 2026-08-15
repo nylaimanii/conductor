@@ -1,4 +1,4 @@
-import { INK, MONO_FONT } from './palette.js'
+import { DARK_INK as INK, MONO_FONT } from './palette.js'
 
 // Headway spread against training timesteps: the learning curve itself.
 //
@@ -28,7 +28,7 @@ export function drawSparkline(ctx, opts) {
   ctx.beginPath()
   ctx.moveTo(padL, py(0))
   ctx.lineTo(padL + w, py(0))
-  ctx.strokeStyle = 'rgba(22,24,26,0.18)'
+  ctx.strokeStyle = 'rgba(190,220,245,0.16)'
   ctx.lineWidth = 1
   ctx.stroke()
 
@@ -54,13 +54,13 @@ export function drawSparkline(ctx, opts) {
     ctx.beginPath()
     ctx.moveTo(cx, padY - 3)
     ctx.lineTo(cx, padY + h + 3)
-    ctx.strokeStyle = 'rgba(22,24,26,0.45)'
+    ctx.strokeStyle = 'rgba(200,225,245,0.45)'
     ctx.lineWidth = 1
     ctx.stroke()
   }
 
   ctx.font = `500 9px ${MONO_FONT}`
-  ctx.fillStyle = 'rgba(22,24,26,0.55)'
+  ctx.fillStyle = 'rgba(160,190,215,0.75)'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   ctx.fillText('cv', padL + w + 5, py(0) - h / 2)

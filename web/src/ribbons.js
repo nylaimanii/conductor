@@ -1,4 +1,4 @@
-import { LINE_COLORS, INK, MONO_FONT } from './palette.js'
+import { LINE_COLORS, DARK_INK as INK, MONO_FONT } from './palette.js'
 import { clamp01 } from './easing.js'
 
 // HEADWAY RIBBONS.
@@ -39,7 +39,7 @@ export function drawRibbons(ctx, opts) {
     // Trough.
     ctx.beginPath()
     ctx.roundRect(x0, y - BAR_H / 2, barW, BAR_H, BAR_H / 2)
-    ctx.fillStyle = 'rgba(22,24,26,0.09)'
+    ctx.fillStyle = 'rgba(190,220,245,0.07)'
     ctx.fill()
 
     const total = s.gaps.reduce((a, b) => a + b, 0) || 1
@@ -75,7 +75,7 @@ export function drawRibbons(ctx, opts) {
     ctx.save()
     ctx.setLineDash([3, 3])
     ctx.lineWidth = 1
-    ctx.strokeStyle = 'rgba(22,24,26,0.5)'
+    ctx.strokeStyle = 'rgba(200,225,245,0.35)'
     const step = (ideal / total) * barW
     for (let i = 1; i < s.gaps.length; i++) {
       const mx = x0 + step * i

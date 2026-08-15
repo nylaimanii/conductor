@@ -1,4 +1,4 @@
-import { INK, TILE, WAIT_COLORS, MONO_FONT } from './palette.js'
+import { DARK_INK as INK, WAIT_COLORS, MONO_FONT } from './palette.js'
 import { phaseFor, squashStretch, clamp01, easeOutBack } from './easing.js'
 
 // Pure drawing primitives. Nothing in here reads run data, everything takes
@@ -57,48 +57,41 @@ export function drawTrain(ctx, opts) {
   // as merely parked. Drawn in ink rather than in one of the wait colors so it
   // cannot be misread as a passenger state.
   if (opts.holding) {
-    const pulse = (Math.sin(t * 3.4 + ph * 2) * 0.5 + 0.5)
-    const grow = 3.5 + pulse * 3.5
+    const pulse = Math.sin(t * 3.4 + ph * 2) * 0.5 + 0.5
+    const grow = 3.5 + pulse * 5
+    ctx.save()
+    ctx.shadowColor = 'rgba(150,225,255,0.95)'
+    ctx.shadowBlur = 10 + pulse * 16
     capsule(ctx, 0, 0, L + grow * 2, T + grow * 2, angle)
-    ctx.setLineDash([2.5, 2.5])
-    ctx.lineWidth = 1.6
-    ctx.strokeStyle = `rgba(22,24,26,${0.5 - pulse * 0.3})`
+    ctx.lineWidth = 1.4
+    ctx.strokeStyle = `rgba(170,230,255,${0.5 - pulse * 0.22})`
     ctx.stroke()
-    ctx.setLineDash([])
+    ctx.restore()
   }
 
   // A train sits on top of a line of its own color, so without a halo it reads
   // as a thickening of the line rather than as a vehicle. The tile colored
   // stroke cuts it free of the track before the ink outline goes on.
+  // Soft edged block with a rim light. No face, no eyes.
   capsule(ctx, 0, 0, L, T, angle)
-  ctx.lineWidth = 6
-  ctx.strokeStyle = TILE
-  ctx.stroke()
+  ctx.save()
+  ctx.shadowColor = color
+  ctx.shadowBlur = 14
   ctx.fillStyle = color
   ctx.fill()
-  ctx.lineWidth = 2.4
-  ctx.strokeStyle = INK
-  ctx.stroke()
+  ctx.restore()
 
-  // Eyes ride at the leading end, in the train's own rotated frame.
-  ctx.rotate(angle)
-  const eyeX = L / 2 - T * 0.38
-  const eyeGap = T * 0.24
-  const eyeR = Math.max(1.4, T * 0.11)
-  // Blink is rare and per train, driven off the same stable phase.
-  const blinkCycle = 3.6 + phaseFor(`blink:${id}`) * 3
-  const blinkT = (t + ph) % blinkCycle
-  const lidClosed = blinkT < 0.09
-  ctx.fillStyle = INK
-  for (const s of [-1, 1]) {
-    ctx.beginPath()
-    if (lidClosed) {
-      ctx.ellipse(eyeX, s * eyeGap, eyeR, eyeR * 0.18, 0, 0, Math.PI * 2)
-    } else {
-      ctx.arc(eyeX, s * eyeGap, eyeR, 0, Math.PI * 2)
-    }
-    ctx.fill()
-  }
+  ctx.save()
+  capsule(ctx, 0, 0, L, T, angle)
+  ctx.clip()
+  const rim = ctx.createLinearGradient(0, -T / 2, 0, T / 2)
+  rim.addColorStop(0, 'rgba(255,255,255,0.5)')
+  rim.addColorStop(0.45, 'rgba(255,255,255,0.05)')
+  rim.addColorStop(1, 'rgba(0,0,0,0.35)')
+  ctx.fillStyle = rim
+  ctx.fillRect(-L, -T, L * 2, T * 2)
+  ctx.restore()
+
 
   ctx.restore()
 }
@@ -172,10 +165,15 @@ export function drawPassengers(ctx, opts) {
     const px = x + tx * along + nx * out
     const py = y + ty * along + ny * out
 
+    const c = WAIT_COLORS[state] || WAIT_COLORS.calm
+    ctx.save()
+    ctx.shadowColor = c
+    ctx.shadowBlur = 7
     ctx.beginPath()
     ctx.arc(px, py, Math.max(0.1, dotR * breathe * grow), 0, Math.PI * 2)
-    ctx.fillStyle = WAIT_COLORS[state] || WAIT_COLORS.calm
+    ctx.fillStyle = c
     ctx.fill()
+    ctx.restore()
   }
 
   const hidden = waits.length - shown
@@ -191,12 +189,15 @@ export function drawPassengers(ctx, opts) {
 }
 
 // Station tick on the line. Vignelli style: a plain dot, ink ringed.
-export function drawStation(ctx, x, y, r = 4.2) {
+// A glowing node. Brightness is carried by the caller through alpha, so a
+// crowded platform reads hotter than an empty one.
+export function drawStation(ctx, x, y, r = 4.2, glow = 0) {
+  ctx.save()
+  ctx.shadowColor = 'rgba(200,235,255,0.9)'
+  ctx.shadowBlur = 6 + glow * 14
   ctx.beginPath()
-  ctx.arc(x, y, r, 0, Math.PI * 2)
-  ctx.fillStyle = '#FFFFFF'
+  ctx.arc(x, y, r * 0.72, 0, Math.PI * 2)
+  ctx.fillStyle = `rgba(232,245,255,${0.75 + glow * 0.25})`
   ctx.fill()
-  ctx.lineWidth = 2
-  ctx.strokeStyle = INK
-  ctx.stroke()
+  ctx.restore()
 }

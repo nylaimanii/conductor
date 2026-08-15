@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDprCanvas } from './useDprCanvas.js'
 import {
   LINE_IDS,
@@ -18,6 +18,7 @@ import {
 import { sampleLine, captureOffsets, withOffsets } from './sample.js'
 import { easeOutCubic, clamp01 } from './easing.js'
 import { drawScene } from './scene.js'
+import { makeCamera2d, stepCamera2d, resetCamera2d, usePanZoom } from './pan.js'
 import { drawRibbons, ribbonHeight } from './ribbons.js'
 import { drawSparkline } from './sparkline.js'
 import { runCv, holdRate } from './headway.js'
@@ -161,6 +162,7 @@ const TICKS_PER_SEC = 12
 
 export default function App() {
   const [view, setView] = useState('network')
+  const cam = useMemo(() => makeCamera2d(), [])
   const narrow = useIsNarrow()
   const curve = useCvCurve()
   const refs = useReferenceRuns()
@@ -279,17 +281,18 @@ export default function App() {
       untrained: liveCv(FIRST_TAG),
     }
 
+    stepCamera2d(cam, dt)
+
     drawScene(ctx, {
       width,
       height,
       lines: sampled,
       t,
+      cam,
       hits: hitsRef.current,
       selected: pickedRef.current,
       focus: focusRef.current,
-      // The rivers are placed against the whole network, so they only make
-      // sense when the whole network is on screen.
-      backdrop: !focusRef.current,
+      backdrop: true,
     })
   })
 
@@ -303,6 +306,25 @@ export default function App() {
       at: timestepsFor(scrubRef.current),
     })
   })
+
+  const pickAt = useCallback((p) => {
+    let best = null
+    for (const h of hitsRef.current) {
+      const d = Math.hypot(h.x - p.x, h.y - p.y)
+      if (d < 24 && (!best || d < best.d)) best = { d, line: h.line, index: h.index }
+    }
+    if (best) {
+      setPicked({ line: best.line, index: best.index })
+      const st = sampledRef.current.find((x) => x.line === best.line)
+      const tr = st?.trains?.[best.index]
+      if (tr) setPickedTrain({ ...tr, index: best.index })
+    } else {
+      setPicked(null)
+      setPickedTrain(null)
+    }
+  }, [])
+
+  usePanZoom(stageRef, cam, { onTap: pickAt })
 
   const ribbonRef = useDprCanvas((ctx, { width, height, t }) => {
     const all = sampledRef.current
@@ -414,9 +436,12 @@ export default function App() {
         <div>
           <div className="brand display">HEADWAY</div>
           <h1 className="headline display">
-            subway trains that taught themselves to stop bunching up. drag the bar to watch
-            them learn.
+            you're not late because the train is slow. you're late because three of them
+            showed up at once.
           </h1>
+          <p className="subline">
+            we taught the trains to fix it themselves. nobody wrote the rule.
+          </p>
         </div>
         <ViewSwitch view={view} setView={setView} />
       </div>
@@ -440,32 +465,7 @@ export default function App() {
       </div>
 
       <div className="stage">
-        <canvas
-          ref={stageRef}
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect()
-            const mx = e.clientX - r.left
-            const my = e.clientY - r.top
-            // Nearest train within a finger sized radius, so a tap does not
-            // have to land on a fourteen pixel capsule.
-            let best = null
-            for (const h of hitsRef.current) {
-              const d = Math.hypot(h.x - mx, h.y - my)
-              if (d < 22 && (!best || d < best.d)) best = { d, line: h.line, index: h.index }
-            }
-            // Resolved from the frame that was just drawn, not left to the
-            // readout timer. A click should answer immediately.
-            if (best) {
-              setPicked({ line: best.line, index: best.index })
-              const st = sampledRef.current.find((x) => x.line === best.line)
-              const tr = st?.trains?.[best.index]
-              if (tr) setPickedTrain({ ...tr, index: best.index })
-            } else {
-              setPicked(null)
-              setPickedTrain(null)
-            }
-          }}
-        />
+        <canvas ref={stageRef} />
       </div>
 
       <Inspector
@@ -571,6 +571,9 @@ export default function App() {
         </button>
         <button className="btn mono" onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}>
           {speed}x
+        </button>
+        <button className="btn mono" onClick={() => resetCamera2d(cam)}>
+          reset view
         </button>
         <div className="scrub-wrap">
           <input

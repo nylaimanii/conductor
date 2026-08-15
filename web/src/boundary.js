@@ -1,4 +1,4 @@
-import { INK, TILE, LINE_COLORS, MONO_FONT } from './palette.js'
+import { DARK_INK as INK, DARK_BG as TILE, LINE_COLORS, MONO_FONT } from './palette.js'
 import { clamp01, phaseFor } from './easing.js'
 import { featureFor, axisFeature, EVEN_HEADWAY } from './interp.js'
 
@@ -21,9 +21,10 @@ import { featureFor, axisFeature, EVEN_HEADWAY } from './interp.js'
 // exists to refute. Flat against structured is only honest if both are
 // measured against the same ruler.
 const STOPS = [
-  [0.0, [239, 235, 228]],
-  [0.5, [232, 176, 75]],
-  [1.0, [216, 80, 60]],
+  [0.0, [12, 16, 20]],
+  [0.35, [70, 60, 120]],
+  [0.7, [232, 150, 70]],
+  [1.0, [255, 120, 90]],
 ]
 
 export function ramp(v) {
@@ -133,7 +134,7 @@ export function drawBoundary(ctx, opts) {
   ctx.restore()
 
   ctx.font = `500 9px ${MONO_FONT}`
-  ctx.fillStyle = 'rgba(22,24,26,0.6)'
+  ctx.fillStyle = 'rgba(160,190,215,0.7)'
   ctx.textAlign = 'left'
   ctx.fillText(String(x0), ox, oy + h + 6)
   ctx.textAlign = 'right'
@@ -158,18 +159,18 @@ export function drawBoundary(ctx, opts) {
     // Everything outside the region is knocked back, so the eye lands on the
     // part of the surface the policy actually visits. Structure out in the
     // extrapolated corners is not evidence of a learned rule.
-    ctx.fillStyle = 'rgba(239,235,228,0.62)'
+    ctx.fillStyle = 'rgba(10,12,14,0.66)'
     ctx.beginPath()
     ctx.rect(ox, oy, w, h)
     ctx.rect(rx, ry, rw, rh)
     ctx.fill('evenodd')
     ctx.setLineDash([4, 3])
     ctx.lineWidth = 1.5
-    ctx.strokeStyle = 'rgba(22,24,26,0.75)'
+    ctx.strokeStyle = 'rgba(200,225,245,0.7)'
     ctx.strokeRect(rx, ry, rw, rh)
     ctx.setLineDash([])
     ctx.font = `500 9px ${MONO_FONT}`
-    ctx.fillStyle = 'rgba(22,24,26,0.75)'
+    ctx.fillStyle = 'rgba(200,225,245,0.8)'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'bottom'
     ctx.fillText('where it actually operates', rx + 2, ry - 3)
@@ -182,9 +183,9 @@ export function drawBoundary(ctx, opts) {
   ctx.save()
   ctx.setLineDash([2, 3])
   ctx.lineWidth = 1
-  ctx.strokeStyle = 'rgba(22,24,26,0.55)'
+  ctx.strokeStyle = 'rgba(200,225,245,0.5)'
   ctx.font = `500 9px ${MONO_FONT}`
-  ctx.fillStyle = 'rgba(22,24,26,0.7)'
+  ctx.fillStyle = 'rgba(200,225,245,0.75)'
   if (isHeadway(doc.x) && EVEN_HEADWAY >= x0 && EVEN_HEADWAY <= x1) {
     const gx = px(EVEN_HEADWAY)
     ctx.beginPath()
@@ -267,7 +268,7 @@ export function drawScale(ctx, width, height) {
   ctx.textAlign = 'left'
   ctx.fillText('chance it waits', w + 8, height / 2)
   ctx.font = `500 9px ${MONO_FONT}`
-  ctx.fillStyle = 'rgba(22,24,26,0.6)'
+  ctx.fillStyle = 'rgba(160,190,215,0.7)'
   ctx.textAlign = 'left'
   ctx.fillText('0', 1, height - 2)
   ctx.textAlign = 'right'

@@ -21,3 +21,10 @@ export const WAIT_COLORS = {
 
 export const DISPLAY_FONT = '"Baloo 2", system-ui, sans-serif'
 export const MONO_FONT = '"JetBrains Mono", ui-monospace, monospace'
+
+
+// Dark skin. The page ground everything glows against.
+export const DARK_BG = '#0A0C0E'
+export const DARK_LAND = '#12171C'
+export const DARK_WATER = '#0C1218'
+export const DARK_INK = '#DFE7EE'

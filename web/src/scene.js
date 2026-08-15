@@ -1,4 +1,4 @@
-import { LINE_COLORS, TILE, INK } from './palette.js'
+import { LINE_COLORS, TILE, INK, DARK_BG, DARK_LAND, DARK_WATER } from './palette.js'
 import { drawTrain, drawPassengers, drawStation } from './draw.js'
 import { posToXY, boundsOf, fitTransform } from './geometry.js'
 import { clamp01, easeOutBack, recoil } from './easing.js'
@@ -57,7 +57,7 @@ export function drawScene(ctx, opts) {
   const { width, height, lines, t, focus = null, backdrop = false, hits = null, selected = null } = opts
   if (hits) hits.length = 0
 
-  ctx.fillStyle = TILE
+  ctx.fillStyle = DARK_BG
   ctx.fillRect(0, 0, width, height)
 
   // Focus filters before the fit is computed, so a single line fills the frame
@@ -66,7 +66,13 @@ export function drawScene(ctx, opts) {
   if (docs.length === 0) return
 
   const bounds = boundsOf(docs)
-  const { scale, dx, dy } = fitTransform(bounds, width, height)
+  const fit = fitTransform(bounds, width, height)
+  // Camera rides on top of the fit as a plain pan and zoom. Affine only: the
+  // perspective tilt was tried and is documented in the notes as cut.
+  const cz = opts.cam ? opts.cam.zoom : 1
+  const scale = fit.scale * cz
+  const dx = fit.dx * cz + (1 - cz) * (width / 2) - (opts.cam ? opts.cam.panX : 0)
+  const dy = fit.dy * cz + (1 - cz) * (height / 2) - (opts.cam ? opts.cam.panY : 0)
 
   ctx.save()
   ctx.translate(dx, dy)
@@ -85,12 +91,20 @@ export function drawScene(ctx, opts) {
     ctx.beginPath()
     ctx.moveTo(s.stations[0].x, s.stations[0].y)
     for (let i = 1; i < s.stations.length; i++) ctx.lineTo(s.stations[i].x, s.stations[i].y)
-    ctx.lineWidth = 13
-    ctx.strokeStyle = INK
-    ctx.stroke()
-    ctx.lineWidth = 9
+    // Emissive: a wide soft pass then a bright core. shadowBlur is affordable
+    // here because there are only five paths.
+    ctx.save()
+    ctx.shadowColor = color
+    ctx.shadowBlur = 22
     ctx.strokeStyle = color
+    ctx.globalAlpha = 0.32
+    ctx.lineWidth = 13
     ctx.stroke()
+    ctx.globalAlpha = 0.95
+    ctx.shadowBlur = 10
+    ctx.lineWidth = 6
+    ctx.stroke()
+    ctx.restore()
   }
 
   for (const s of docs) {
@@ -98,7 +112,7 @@ export function drawScene(ctx, opts) {
 
     for (let i = 0; i < s.stations.length; i++) {
       const st = s.stations[i]
-      drawStation(ctx, st.x, st.y, 4.6)
+      drawStation(ctx, st.x, st.y, 4.6, clamp01((s.waiting[i] || 0) / 14))
 
       const n = s.waiting[i] || 0
       if (n <= 0.02) continue

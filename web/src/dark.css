@@ -1,0 +1,215 @@
+/* Dark skin, applied over the existing layout.
+   No bordered boxes: the ground and the glow do the separating. */
+
+body {
+  background: #0a0c0e;
+  color: #dfe7ee;
+}
+
+.app {
+  background: #0a0c0e;
+  gap: 10px;
+}
+
+/* Type */
+.brand {
+  color: #eaf3fb;
+  opacity: 0.8;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+}
+
+.headline {
+  color: #f2f7fc;
+  font-size: 34px;
+  line-height: 1.12;
+  max-width: 24ch;
+  text-wrap: balance;
+}
+
+.subline {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: #93a7b8;
+  margin: 8px 0 0;
+}
+
+/* Boxes become open space */
+.stage,
+.panel,
+.legend,
+.inspector,
+.metric,
+.cell,
+.rule,
+.side,
+.boundary-stage {
+  border: none !important;
+  background: transparent;
+}
+
+.stage {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.75);
+  cursor: grab;
+}
+
+.stage:active {
+  cursor: grabbing;
+}
+
+.stage canvas {
+  touch-action: none;
+}
+
+/* Readouts */
+.hero-label,
+.sec-label,
+.metric-label,
+.legend-title {
+  color: #7d93a6;
+}
+
+.hero-value,
+.sec-value,
+.metric-pair,
+.insp-value {
+  color: #f2f7fc;
+}
+
+.hero-value {
+  text-shadow: 0 0 30px rgba(130, 200, 255, 0.35);
+}
+
+.hero-sub,
+.sec-unit,
+.metric-delta,
+.note,
+.legend,
+.inspector {
+  color: #8ea3b5;
+}
+
+.tradeoff {
+  color: #e8f1f9;
+}
+
+.hard-line {
+  color: #7d93a6;
+}
+
+.note-flag {
+  color: #ff8f7a;
+}
+
+/* Controls */
+.btn,
+.tab,
+.vbtn,
+.insp-clear {
+  color: #b9cee0;
+  border-color: rgba(150, 190, 220, 0.25);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.btn:hover,
+.tab:hover {
+  background: rgba(150, 215, 255, 0.09);
+}
+
+.tab-on,
+.vbtn-on {
+  background: rgba(150, 215, 255, 0.16) !important;
+  border-color: rgba(150, 215, 255, 0.6) !important;
+  color: #eaf6ff !important;
+  box-shadow: 0 0 18px rgba(120, 200, 255, 0.22);
+}
+
+.viewswitch {
+  border-color: rgba(150, 190, 220, 0.25);
+}
+
+/* Scrubber as a thin glowing track */
+.scrubber::-webkit-slider-runnable-track,
+.scrubber::-moz-range-track {
+  height: 3px;
+  border: none;
+  box-shadow: 0 0 16px rgba(120, 200, 255, 0.25);
+}
+
+.scrubber::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  background: #eaf6ff;
+  border: none;
+  box-shadow: 0 0 16px rgba(150, 215, 255, 0.9);
+}
+
+.scrubber::-moz-range-thumb {
+  background: #eaf6ff;
+  border: none;
+}
+
+.scrub-tick {
+  background: rgba(200, 225, 245, 0.45);
+}
+
+.swatch-train {
+  background: #59636b;
+  border-color: rgba(200, 225, 245, 0.5);
+}
+
+.swatch-hold {
+  background: #59636b;
+  border-color: rgba(200, 225, 245, 0.5);
+  box-shadow: 0 0 0 2px #0a0c0e, 0 0 0 3.5px rgba(150, 215, 255, 0.7);
+}
+
+.inspector-empty {
+  border: 1px dashed rgba(150, 190, 220, 0.2) !important;
+}
+
+.insp-chip {
+  background: rgba(150, 215, 255, 0.18);
+  color: #eaf6ff;
+}
+
+.glossary {
+  color: #7d93a6;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(150, 200, 240, 0.07), rgba(150, 200, 240, 0.18), rgba(150, 200, 240, 0.07));
+  background-size: 200% 100%;
+}
+
+/* Interp small multiples on the dark ground */
+.cell-final {
+  box-shadow: 0 0 0 1px rgba(150, 215, 255, 0.35);
+  border-radius: 10px;
+}
+
+.cell-head,
+.cell-foot {
+  color: #8ea3b5;
+}
+
+.rule-text {
+  color: #f2f7fc;
+}
+
+.rule-sub {
+  color: #8ea3b5;
+}
+
+.side-head {
+  color: #eaf3fb;
+}
+
+@media (max-width: 760px) {
+  .headline {
+    font-size: 22px;
+  }
+}

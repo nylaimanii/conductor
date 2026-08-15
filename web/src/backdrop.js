@@ -9,7 +9,7 @@
 // vertex list that only ever steps axis aligned or exactly diagonal. Nothing
 // here is a function of time: this layer never animates.
 
-const WATER = '#DDE4E6'
+const WATER = '#0C1218'
 
 // Coordinates are in the same space sim writes station x,y into. The shapes
 // deliberately run well past the station bounds so they bleed off every edge
@@ -48,6 +48,10 @@ const SHAPES = [
 
 export function drawBackdrop(ctx) {
   ctx.save()
+  // Land first, then water over it, so both read as plates just above the
+  // background rather than as the page colour showing through.
+  ctx.fillStyle = '#12171C'
+  ctx.fillRect(-600, -400, 2200, 1400)
   ctx.fillStyle = WATER
   for (const pts of SHAPES) {
     ctx.beginPath()
@@ -75,3 +79,13 @@ export function offAngleEdges() {
   })
   return bad
 }
+
+
+// The same shapes, tagged, for the dark renderer. Land is not drawn in the
+// light theme because the page colour already reads as land; against a near
+// black ground it has to be drawn explicitly or the water has nothing to be
+// water against.
+export const PLATES = [
+  { water: false, pts: [[-600, -400], [1600, -400], [1600, 1000], [-600, 1000]] },
+  ...SHAPES.map((pts) => ({ water: true, pts })),
+]
