@@ -148,6 +148,11 @@ class HeadwayEnv(ParallelEnv):
 
         self.frames: List[dict] = []
 
+        # raw gap-ahead ratios per train per tick, recorded alongside frames.
+        # kept unclipped, unlike the observation feature which saturates at
+        # 3x, because the whole point is to count how often a big gap opens.
+        self.gap_log: List[List[float]] = []
+
     # ------------------------------------------------------------------
     # ring geometry
     #
@@ -543,6 +548,8 @@ class HeadwayEnv(ParallelEnv):
         which is exactly the failure the interp panel is trying to avoid.
         """
         obs = [self._observe(i) for i in range(self.cfg.n_trains)]
+        self.gap_log.append([self._headways(i)[0]
+                             for i in range(self.cfg.n_trains)])
         self.frames.append({
             "t": self.t,
             "pos": [round(float(p), 2) for p in self.pos],
