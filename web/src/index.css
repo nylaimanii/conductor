@@ -1,0 +1,197 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #efebe4;
+  color: #16181a;
+  font-family: 'Baloo 2', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Baloo 2 is display only. It tips into kiddie at body size, so nothing below
+   20px is allowed to use it. Every number is JetBrains Mono. */
+.display {
+  font-family: 'Baloo 2', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px 18px;
+  gap: 12px;
+}
+
+.headline {
+  font-size: 26px;
+  line-height: 1.15;
+  margin: 0;
+  font-weight: 600;
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  border: 2px solid #16181a;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.panel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border: 2px solid #16181a;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.hero {
+  min-width: 132px;
+}
+
+.hero-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+.hero-value {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.hero-sub {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+.ribbons {
+  flex: 1;
+  min-width: 0;
+}
+
+.secondary {
+  min-width: 84px;
+  text-align: right;
+}
+
+.sec-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+.sec-value {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.sec-unit {
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 2px solid #16181a;
+  border-radius: 999px;
+  background: transparent;
+  color: #16181a;
+  cursor: pointer;
+  min-width: 64px;
+}
+
+.btn:hover {
+  background: rgba(22, 24, 26, 0.07);
+}
+
+.scrubber {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.scrubber::-webkit-slider-runnable-track {
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #16181a;
+  background: linear-gradient(90deg, #d8503c 0%, #e8b04b 50%, #4fb286 100%);
+}
+
+.scrubber::-moz-range-track {
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #16181a;
+  background: linear-gradient(90deg, #d8503c 0%, #e8b04b 50%, #4fb286 100%);
+}
+
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: #efebe4;
+  border: 3px solid #16181a;
+}
+
+.scrubber::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #efebe4;
+  border: 3px solid #16181a;
+}
+
+.scrub-read {
+  font-size: 13px;
+  min-width: 44px;
+  text-align: right;
+}
+
+.note {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.6;
+  margin: 0;
+}
