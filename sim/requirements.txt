@@ -1,0 +1,55 @@
+# HEADWAY sim dependencies. Fully pinned, including transitives.
+#
+# supersuit and pettingzoo break against each other constantly, so treat this
+# whole file as one frozen unit. Do not bump any single line without re-running
+# smoke_test.py end to end.
+#
+# Python 3.11.15, installed via uv. Python 3.14 has no torch wheels, so
+# the system homebrew python will not work here.
+#
+#   uv venv --python 3.11 .venv
+#   uv pip install --python .venv/bin/python -r requirements.txt
+#   .venv/bin/python smoke_test.py
+
+# --- direct deps, the ones that actually matter ---
+gymnasium==0.29.1
+pettingzoo==1.24.3
+stable-baselines3==2.3.2
+supersuit==3.9.3
+torch==2.2.2
+numpy==1.26.4
+
+# pygame is only needed by the stock MPE env used in smoke_test.py.
+# the HEADWAY env itself does not need it.
+pygame==2.6.1
+
+# used by the MTA data fetcher
+requests==2.32.5
+
+# --- transitive, pinned so the resolve is reproducible ---
+certifi==2026.7.22
+charset-normalizer==3.5.1
+cloudpickle==3.1.2
+contourpy==1.3.3
+cycler==0.12.1
+farama-notifications==0.0.6
+filelock==3.32.3
+fonttools==4.63.0
+fsspec==2026.7.0
+idna==3.18
+jinja2==3.1.6
+kiwisolver==1.5.0
+markupsafe==3.0.3
+matplotlib==3.11.1
+mpmath==1.3.0
+networkx==3.6.1
+packaging==26.3
+pandas==3.0.5
+pillow==12.3.0
+pyparsing==3.3.2
+python-dateutil==2.9.0.post0
+six==1.17.0
+sympy==1.14.0
+tinyscaler==1.2.8
+typing-extensions==4.16.0
+urllib3==2.7.0
