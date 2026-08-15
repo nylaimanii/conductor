@@ -51,6 +51,12 @@ class LineConfig:
 
     episode_ticks: int = 900
 
+    # beta, the weight on passengers held aboard a stopped train in the
+    # reward. 0.5 is the spec value and what the shipped 012 policy trained
+    # with; do not change the default. Raising it should buy less holding,
+    # so worse spacing and better wait, which sweep_beta.py measures.
+    hold_penalty: float = 0.5
+
     # multiplier on arrival_rates at the peak of the rush.
     peak_multiplier: float = 2.5
 

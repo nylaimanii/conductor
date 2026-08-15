@@ -479,7 +479,8 @@ class HeadwayEnv(ParallelEnv):
         """
         waiting = sum(len(q) for q in self.queues)
         held_onboard = float(self.onboard[self.held].sum()) if self.held.any() else 0.0
-        raw = -(waiting) - 0.5 * held_onboard - 2.0 * self.tick_stranded
+        beta = self.cfg.hold_penalty
+        raw = -(waiting) - beta * held_onboard - 2.0 * self.tick_stranded
         scale = 1.0 / (self.cfg.n_stations * self.cfg.capacity)
         return float(raw * scale)
 

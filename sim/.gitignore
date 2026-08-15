@@ -1,2 +1,4 @@
 # training logs, regenerated on every run
 *.log
+# beta sweep checkpoints, regenerable and not the shipped policy
+checkpoints_beta/
