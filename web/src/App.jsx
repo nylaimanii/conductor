@@ -8,6 +8,7 @@ import {
   tagsNeeded,
   timestepsFor,
   timestepsForTag,
+  noteFor,
   LADDER_TAGS,
   FIRST_TAG,
   TOTAL_TIMESTEPS,
@@ -403,11 +404,13 @@ export default function App() {
                 numbers instead of asserting a direction. */}
             {refs.firstHold === null || hero.hold === null
               ? "the policy's only action"
-              : hero.hold > refs.firstHold * 1.3
-                ? 'learned to hold, and where'
-                : hero.hold < refs.firstHold * 0.7
-                  ? 'fewer holds, better aimed'
-                  : "the policy's only action"}
+              : noteFor(scrub)
+                ? 'holding, not yet aiming'
+                : hero.hold > refs.firstHold * 1.3
+                  ? 'learned to hold, and where'
+                  : hero.hold < refs.firstHold * 0.7
+                    ? 'fewer holds, better aimed'
+                    : "the policy's only action"}
           </div>
         </div>
         <div
@@ -448,8 +451,11 @@ export default function App() {
         {TOTAL_TIMESTEPS.toLocaleString('en-US')} timesteps
         {vsUntrained === null
           ? ''
-          : ` · headway spread ${Math.max(0, vsUntrained).toFixed(0)}% below untrained, run average`}
+          : vsUntrained >= 0
+            ? ` · headway spread ${vsUntrained.toFixed(0)}% below untrained, run average`
+            : ` · headway spread ${Math.abs(vsUntrained).toFixed(0)}% above untrained, run average`}
       </p>
+      {noteFor(scrub) && <p className="note note-flag">{noteFor(scrub)}</p>}
     </div>
   )
 }

@@ -391,3 +391,10 @@ canvas {
   width: auto;
   padding: 0 14px;
 }
+
+/* Commentary on a checkpoint that is worse than the one before it. Marked so
+   it reads as an observation about the run, not as a caption on the controls. */
+.note-flag {
+  opacity: 1;
+  color: #d8503c;
+}

@@ -14,19 +14,23 @@ export const LINE_IDS = ['L', 'G', '7', '1', '6']
 //
 // tag is the {TAG} in /runs/{LINE}_{TAG}.json. baseline is not on the ladder,
 // it is the published timetable the policy is measured against.
-// Training was early stopped at 025, which is the shipped policy, so the
+// Training was early stopped at 012, which is the shipped policy, so the
 // denominator is the run that actually happened rather than the one originally
 // planned. The tag numbers are percent of the original 20M run; frac is the
 // position along the shipped run, which is what the scrubber travels.
+//
+// note is shown when that rung is the one driving the screen. Training is not
+// monotonic and 003 is genuinely worse than the rung before it, so the curve
+// says why rather than hiding it. A ladder picked to look smooth would be a
+// worse account of what happened.
 const LADDER = [
-  { tag: '001', frac: 0.04 },
-  { tag: '003', frac: 0.12 },
-  { tag: '006', frac: 0.24 },
-  { tag: '012', frac: 0.48 },
-  { tag: '025', frac: 1 },
+  { tag: '001', frac: 1 / 12 },
+  { tag: '003', frac: 0.25, note: 'at 3% it rediscovered holding and overdid it' },
+  { tag: '006', frac: 0.5 },
+  { tag: '012', frac: 1 },
 ]
 
-export const TOTAL_TIMESTEPS = 5_000_000
+export const TOTAL_TIMESTEPS = 2_400_000
 
 export const LADDER_TAGS = LADDER.map((c) => c.tag)
 
@@ -63,6 +67,9 @@ export const nearestTagFor = (line, u) => nearestRung(u).tag
 // checkpoint actually driving the screen so the number cannot claim a stage
 // that is not being shown.
 export const timestepsFor = (u) => Math.round(nearestRung(u).frac * TOTAL_TIMESTEPS)
+
+// Commentary for the rung currently on screen, or null if it needs none.
+export const noteFor = (u) => nearestRung(u).note ?? null
 
 // Every tag needed for a given scrubber value: exactly one file per line.
 export function tagsNeeded(u) {
