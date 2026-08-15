@@ -17,6 +17,27 @@ export function waitStates(n) {
   return out
 }
 
+// Unit tangent along the line at a station, plus the normal the crowd stands
+// on. The normal side is chosen deterministically, above horizontal runs and
+// to the right of vertical ones, so crowds never flip sides as the diagram
+// redraws and never land on top of the line itself.
+function frameAt(stations, i) {
+  const a = stations[Math.max(0, i - 1)]
+  const b = stations[Math.min(stations.length - 1, i + 1)]
+  let tx = b.x - a.x
+  let ty = b.y - a.y
+  const len = Math.hypot(tx, ty) || 1
+  tx /= len
+  ty /= len
+  let nx = -ty
+  let ny = tx
+  if (ny > 0 || (Math.abs(ny) < 1e-6 && nx < 0)) {
+    nx = -nx
+    ny = -ny
+  }
+  return { tx, ty, nx, ny }
+}
+
 // How close the nearest inbound train is to each station, in station units.
 // Drives the anticipation lean: the platform reacts a beat before arrival,
 // which is the single cheapest thing that makes the scene feel alive.
@@ -85,17 +106,15 @@ export function drawScene(ctx, opts) {
       const jammed = n > 10 && lean > 0.6
       const kick = jammed ? recoil(((t * 1.7) % 1)) * 1.6 : 0
 
+      const fr = frameAt(s.stations, i)
       drawPassengers(ctx, {
         x: st.x,
-        y: st.y - 13,
+        y: st.y,
         waits: waitStates(n),
         t,
         id: `${s.line}:${i}`,
-        dirX: 0,
-        dirY: -1,
+        ...fr,
         lean: lean * 1.6 - kick,
-        dotR: 3.2,
-        gap: 2.5,
       })
     }
   }

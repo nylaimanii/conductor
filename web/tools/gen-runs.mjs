@@ -232,8 +232,16 @@ function simulate(line, cfg, tag) {
   for (let k = -WARMUP_TICKS; k < SIM_TICKS; k++) {
     const recording = k >= 0
     for (let s = 0; s < nSt; s++) {
-      queueOut[s] += demand[s] * 0.5
-      queueIn[s] += demand[s] * 0.5
+      // Riders at a terminal have only one direction available to them, and
+      // the terminal is only ever called by trains in that one direction.
+      // Splitting their demand across both queues leaves half of them in a
+      // queue no train ever serves, so they pile up on the platform forever.
+      if (s === 0) queueOut[s] += demand[s]
+      else if (s === N) queueIn[s] += demand[s]
+      else {
+        queueOut[s] += demand[s] * 0.5
+        queueIn[s] += demand[s] * 0.5
+      }
     }
 
     for (let i = 0; i < trains.length; i++) {

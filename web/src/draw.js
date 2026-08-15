@@ -1,4 +1,4 @@
-import { INK, WAIT_COLORS, MONO_FONT } from './palette.js'
+import { INK, TILE, WAIT_COLORS, MONO_FONT } from './palette.js'
 import { phaseFor, squashStretch } from './easing.js'
 
 // Pure drawing primitives. Nothing in here reads run data, everything takes
@@ -49,10 +49,16 @@ export function drawTrain(ctx, opts) {
   ctx.save()
   ctx.translate(x, y + bob)
 
+  // A train sits on top of a line of its own color, so without a halo it reads
+  // as a thickening of the line rather than as a vehicle. The tile colored
+  // stroke cuts it free of the track before the ink outline goes on.
   capsule(ctx, 0, 0, L, T, angle)
+  ctx.lineWidth = 6
+  ctx.strokeStyle = TILE
+  ctx.stroke()
   ctx.fillStyle = color
   ctx.fill()
-  ctx.lineWidth = 2
+  ctx.lineWidth = 2.4
   ctx.strokeStyle = INK
   ctx.stroke()
 
@@ -83,8 +89,17 @@ export function drawTrain(ctx, opts) {
 // remainder is shown as a mono count, otherwise a busy station kills framerate.
 export const PASSENGER_CAP = 8
 
+// Passengers cluster beside their platform rather than trailing off in a line.
+// A single file queue of eight dots is longer than the gap between stations, so
+// the crowds of neighbouring stops run into each other and into the other
+// lines. A compact block of four across by two deep stays local to its station
+// at every zoom the diagram is drawn at.
+//
 // waits is an array of state strings: 'calm' | 'waiting' | 'stranded'.
-// dir is the unit vector pointing toward the platform edge, used for the lean.
+// tx,ty is the unit tangent along the line, nx,ny the unit normal pointing to
+// the side the crowd stands on. lean slides the block toward the platform edge.
+const PER_ROW = 4
+
 export function drawPassengers(ctx, opts) {
   const {
     x,
@@ -92,29 +107,36 @@ export function drawPassengers(ctx, opts) {
     waits = [],
     t = 0,
     id = 'stn',
-    dirX = 0,
-    dirY = -1,
+    tx = 1,
+    ty = 0,
+    nx = 0,
+    ny = -1,
     lean = 0,
-    dotR = 3.1,
-    gap = 2.4,
+    dotR = 2.9,
+    gap = 2.2,
   } = opts
 
   const shown = Math.min(waits.length, PASSENGER_CAP)
+  if (shown === 0) return
   const step = dotR * 2 + gap
+  const standoff = 10.5
 
   for (let i = 0; i < shown; i++) {
     const state = waits[i] || 'calm'
     const ph = phaseFor(`${id}:${i}`) * Math.PI * 2
-    // Each dot drifts on its own clock so the crowd reads as individuals.
-    const sway = Math.sin(t * 1.15 + ph) * 0.7
+    // Each dot drifts on its own clock so the crowd reads as individuals
+    // rather than one shape pulsing in unison.
+    const sway = Math.sin(t * 1.15 + ph) * 0.55
     const breathe = 1 + Math.sin(t * 2.1 + ph) * 0.05
 
-    // Lean toward the platform edge a beat before the train arrives.
-    const lx = dirX * lean * (3 + (i % 3))
-    const ly = dirY * lean * (3 + (i % 3))
+    const col = i % PER_ROW
+    const row = Math.floor(i / PER_ROW)
+    const along = (col - (PER_ROW - 1) / 2) * step + sway
+    // Lean pulls the block in toward the track a beat before arrival.
+    const out = standoff + row * step - lean * 3.4
 
-    const px = x + dirY * (i * step - ((shown - 1) * step) / 2) + lx + sway
-    const py = y - dirX * (i * step - ((shown - 1) * step) / 2) + ly
+    const px = x + tx * along + nx * out
+    const py = y + ty * along + ny * out
 
     ctx.beginPath()
     ctx.arc(px, py, dotR * breathe, 0, Math.PI * 2)
@@ -124,13 +146,13 @@ export function drawPassengers(ctx, opts) {
 
   const hidden = waits.length - shown
   if (hidden > 0) {
-    ctx.font = `500 10px ${MONO_FONT}`
+    const rows = Math.ceil(shown / PER_ROW)
+    const out = standoff + rows * step - lean * 3.4
+    ctx.font = `500 9px ${MONO_FONT}`
     ctx.fillStyle = INK
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const ox = x + dirY * (shown * step - ((shown - 1) * step) / 2) + 2
-    const oy = y - dirX * (shown * step - ((shown - 1) * step) / 2)
-    ctx.fillText(`+${hidden}`, ox, oy)
+    ctx.fillText(`+${hidden}`, x + nx * out, y + ny * out)
   }
 }
 

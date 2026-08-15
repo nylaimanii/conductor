@@ -5,12 +5,30 @@ import { sampleLine, captureOffsets, withOffsets } from './sample.js'
 import { easeOutCubic, clamp01 } from './easing.js'
 import { drawScene } from './scene.js'
 import { drawRibbons, ribbonHeight } from './ribbons.js'
+import Compare from './Compare.jsx'
+
+function ViewSwitch({ view, setView }) {
+  return (
+    <div className="viewswitch">
+      {['network', 'compare'].map((v) => (
+        <button
+          key={v}
+          className={`vbtn mono${v === view ? ' vbtn-on' : ''}`}
+          onClick={() => setView(v)}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // Ticks consumed per second at 1x. The runs hold 200 subsampled ticks, so a
 // full pass is a bit under twenty seconds.
 const TICKS_PER_SEC = 12
 
 export default function App() {
+  const [view, setView] = useState('network')
   const [scrub, setScrub] = useState(0)
   const [playing, setPlaying] = useState(true)
   const [speed, setSpeed] = useState(1)
@@ -113,11 +131,36 @@ export default function App() {
     return () => clearInterval(id)
   }, [])
 
+  if (view === 'compare') {
+    return (
+      <div className="app">
+        <div className="topbar">
+          <h1 className="headline display">
+            same day, same riders. the policy on the right learned to space its trains.
+          </h1>
+          <ViewSwitch view={view} setView={setView} />
+        </div>
+        <Compare playing={playing} speed={speed} />
+        <div className="controls">
+          <button className="btn" onClick={() => setPlaying((p) => !p)}>
+            {playing ? 'pause' : 'play'}
+          </button>
+          <button className="btn mono" onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}>
+            {speed}x
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
-      <h1 className="headline display">
-        these trains are teaching themselves to space out. drag the bar to watch them learn.
-      </h1>
+      <div className="topbar">
+        <h1 className="headline display">
+          these trains are teaching themselves to space out. drag the bar to watch them learn.
+        </h1>
+        <ViewSwitch view={view} setView={setView} />
+      </div>
 
       <div className="stage">
         <canvas ref={stageRef} />
