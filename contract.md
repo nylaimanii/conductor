@@ -3,7 +3,9 @@ sim writes, web reads. neither agent changes this without asking Nyla.
 
 path: /web/public/runs/{LINE}_{TAG}.json
 tags: 000, 025, 050, 100, baseline
-L gets all five. G, 7, 1, 6 get 000, 100, baseline.
+all five lines (L, G, 7, 1, 6) get all five tags, so 25 files.
+025 and 050 on G, 7, 1 and 6 are the L-trained weights run zero-shot.
+nothing is retrained per line.
 
 {
   "line": "L",
