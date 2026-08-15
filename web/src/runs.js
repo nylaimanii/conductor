@@ -29,7 +29,8 @@ export const LINE_IDS = ['L', 'G', '7', '1', '6']
 const LADDER = [
   { tag: '000', frac: 0 },
   { tag: '001', frac: 1 / 12 },
-  { tag: '003', frac: 0.25, note: 'at 3% it rediscovered holding and overdid it' },
+  { tag: '003', frac: 0.25, note:
+      'a quarter of the way through training, it started holding trains far too often and made things worse than doing nothing.' },
   { tag: '006', frac: 0.5 },
   { tag: '012', frac: 1 },
 ]
@@ -37,6 +38,11 @@ const LADDER = [
 export const TOTAL_TIMESTEPS = 2_400_000
 
 export const LADDER_TAGS = LADDER.map((c) => c.tag)
+export const LADDER_FRACS = LADDER.map((c) => c.frac)
+
+// Nearest checkpoint position. The scrubber only has five meaningful stops, so
+// the handle sits on one of them rather than anywhere between.
+export const snapToRung = (u) => nearestRung(u).frac
 
 // The two ends of the ladder. Named rather than spelled out at each use, so a
 // re-cut does not leave a stale tag hiding in a comparison somewhere.

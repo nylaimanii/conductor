@@ -144,21 +144,21 @@ export default function Compare({ playing, speed }) {
           line={line}
           tag="baseline"
           headRef={headRef}
-          label="baseline"
+          label="today's timetable"
           onState={(s) => (leftRef.current = s)}
         />
         <Side
           line={line}
           tag={FINAL_TAG}
           headRef={headRef}
-          label="trained"
+          label="after learning"
           onState={(s) => (rightRef.current = s)}
         />
       </div>
 
       <div className="metrics">
         <div className="metric metric-hero">
-          <div className="metric-label">headway spread, cv · vs timetable</div>
+          <div className="metric-label">how evenly trains are spaced, vs today's timetable</div>
           <div className="metric-pair mono">
             <span className="was">{stats ? stats.cvL.toFixed(3) : '--'}</span>
             <span className="arrow">to</span>
@@ -170,11 +170,11 @@ export default function Compare({ playing, speed }) {
               : cvDrop >= 0
                 ? `${cvDrop.toFixed(0)}% more even than the timetable`
                 : `${Math.abs(cvDrop).toFixed(0)}% less even than the timetable`}
-            {cvVsUntrained === null ? '' : ` · ${cvVsUntrained.toFixed(0)}% vs untrained`}
+            {cvVsUntrained === null ? '' : ` · ${cvVsUntrained.toFixed(0)}% better than before learning`}
           </div>
         </div>
         <div className="metric metric-hero">
-          <div className="metric-label">hold rate · untrained to trained</div>
+          <div className="metric-label">how often trains wait at the platform</div>
           <div className="metric-pair mono">
             <span className="was">
               {stats && stats.holdUntrained !== null
@@ -186,12 +186,12 @@ export default function Compare({ playing, speed }) {
           </div>
           <div className="metric-delta mono">
             {stats && stats.holdUntrained !== null && stats.holdR > stats.holdUntrained
-              ? 'learned to spend the action. holding too eagerly is catastrophic.'
-              : 'random holding to selective holding. holding too eagerly is catastrophic.'}
+              ? 'before learning, to after. waiting too eagerly makes everything worse.'
+              : 'random waiting, to picking the right moments. waiting too eagerly makes everything worse.'}
           </div>
         </div>
         <div className="metric">
-          <div className="metric-label">mean wait</div>
+          <div className="metric-label">average wait, vs today's timetable</div>
           <div className="metric-pair mono small">
             <span className="was">{stats ? stats.waitL.toFixed(2) : '--'}</span>
             <span className="arrow">to</span>

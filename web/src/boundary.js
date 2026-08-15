@@ -260,7 +260,7 @@ export function drawScale(ctx, width, height) {
   ctx.fillStyle = INK
   ctx.textBaseline = 'middle'
   ctx.textAlign = 'left'
-  ctx.fillText('P(hold)  0', w + 6, height / 2)
+  ctx.fillText('chance it waits  0', w + 6, height / 2)
   ctx.textAlign = 'right'
   ctx.fillText('1', width, height / 2)
 }

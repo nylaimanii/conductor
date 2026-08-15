@@ -467,3 +467,156 @@ canvas {
   font-weight: 700;
   opacity: 1;
 }
+
+/* Tier 1: the tradeoff is stated in body type, not tucked into fine print. */
+.tradeoff {
+  font-family: 'Baloo 2', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+  color: #16181a;
+}
+
+/* Reserved row. Height is fixed whether or not there is an annotation, so
+   nothing below it moves when the scrubber crosses a commented checkpoint. */
+.note-flag {
+  min-height: 15px;
+}
+
+.note-empty {
+  visibility: hidden;
+}
+
+.updating {
+  font-size: 15px;
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+}
+
+/* Tier 2: identity and the persistent key */
+
+.brand {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 2px solid #16181a;
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.legend-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.legend-title {
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+
+.swatch-train {
+  width: 18px;
+  height: 10px;
+  border-radius: 5px;
+  background: #a7a9ac;
+  border: 1.5px solid #16181a;
+}
+
+.swatch-hold {
+  width: 18px;
+  height: 10px;
+  border-radius: 5px;
+  background: #a7a9ac;
+  border: 1.5px solid #16181a;
+  box-shadow: 0 0 0 2px #efebe4, 0 0 0 3.5px rgba(22, 24, 26, 0.55);
+}
+
+.glossary {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.glossary summary {
+  cursor: pointer;
+}
+
+.glossary dl {
+  margin: 6px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+}
+
+.glossary dt {
+  font-weight: 700;
+}
+
+.glossary dd {
+  margin: 0;
+}
+
+/* Tier 3: the bar has five stops, so show them and land on them. */
+.scrub-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.scrub-wrap .scrubber {
+  width: 100%;
+}
+
+.scrub-ticks {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  height: 0;
+  pointer-events: none;
+}
+
+.scrub-tick {
+  position: absolute;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  transform: translateY(-50%);
+  background: #16181a;
+  opacity: 0.45;
+  border-radius: 1px;
+}
+
+.scrub-tick-on {
+  opacity: 0;
+}

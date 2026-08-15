@@ -109,7 +109,7 @@ export default function Boundary({ playing, speed }) {
           className={`tab tab-wide mono${tag === FINAL_TAG ? ' tab-on' : ''}`}
           onClick={() => setTag(FINAL_TAG)}
         >
-          trained
+          after learning
         </button>
         <span className="tab-gap" />
         {SURFACES.map((s) => (
@@ -150,8 +150,9 @@ export default function Boundary({ playing, speed }) {
               surface is genuinely flat rather than merely drawn flat. */}
           {span && (
             <>
-              P(hold) spans {span.lo.toFixed(4)} to {span.hi.toFixed(4)} on a fixed 0 to 1 scale
-              {span.hi - span.lo < 0.01 ? '. featureless: no rule to read.' : '.'}
+              chance of waiting ranges from {span.lo.toFixed(4)} to {span.hi.toFixed(4)}, on a
+              fixed 0 to 1 scale
+              {span.hi - span.lo < 0.01 ? '. completely flat: there is no rule here yet.' : '.'}
               <br />
             </>
           )}
@@ -161,7 +162,7 @@ export default function Boundary({ playing, speed }) {
               ? `field only. ${axisFeature(doc?.x)} and ${axisFeature(doc?.y)} are policy ` +
                 `observation features that the run files do not carry, so no train is plotted ` +
                 `rather than plotted somewhere invented.`
-              : 'each dot is a train, in the policy’s own coordinates. ringed dots are holding.'}
+              : 'each dot is a train. ringed dots are waiting at the platform right now.'}
         </div>
       </div>
 
