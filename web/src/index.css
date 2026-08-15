@@ -742,3 +742,87 @@ canvas {
 .hard-line {
   opacity: 0.75;
 }
+
+/* One train, read against the rule. */
+.inspector {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  border: 2px solid #16181a;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.inspector-empty {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.stage canvas {
+  cursor: pointer;
+}
+
+.insp-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.insp-chip {
+  background: #16181a;
+  color: #efebe4;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.insp-hold {
+  color: #d8503c;
+  font-weight: 700;
+}
+
+.insp-gap {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.insp-label {
+  opacity: 0.6;
+}
+
+.insp-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.insp-even {
+  color: #4fb286;
+}
+
+.insp-closed-up {
+  color: #d8503c;
+}
+
+.insp-fallen-behind {
+  color: #e8b04b;
+}
+
+.insp-read {
+  flex: 1;
+  min-width: 180px;
+  opacity: 0.85;
+}
+
+.insp-clear {
+  font-family: inherit;
+  font-size: 10px;
+  border: 1.5px solid #16181a;
+  border-radius: 999px;
+  background: transparent;
+  padding: 3px 10px;
+  cursor: pointer;
+}

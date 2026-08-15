@@ -24,6 +24,7 @@ import { runCv, holdRate } from './headway.js'
 import Compare from './Compare.jsx'
 import Boundary from './Boundary.jsx'
 import Legend from './Legend.jsx'
+import Inspector from './Inspector.jsx'
 
 function ViewSwitch({ view, setView }) {
   return (
@@ -168,6 +169,7 @@ export default function App() {
   // that only reads if they are on screen together. Narrow screens cannot fit
   // five lines, so they fall back to a single line and lose that reading.
   const [focusSel, setFocusSel] = useState('all')
+  const [picked, setPicked] = useState(null)
   const [scrub, setScrub] = useState(0)
   const [playing, setPlaying] = useState(true)
   const [speed, setSpeed] = useState(1)
@@ -189,6 +191,10 @@ export default function App() {
   const headRef = useRef(0)
   const sampledRef = useRef([])
   const liveRef = useRef({ cv: null, baseline: null, untrained: null })
+  // Screen positions of every train on the last drawn frame, for click matching.
+  const hitsRef = useRef([])
+  const pickedRef = useRef(null)
+  pickedRef.current = picked
 
   // Lazy load: only the checkpoints the current scrubber value actually
   // brackets are ever requested, and each file is fetched at most once.
@@ -278,6 +284,8 @@ export default function App() {
       height,
       lines: sampled,
       t,
+      hits: hitsRef.current,
+      selected: pickedRef.current,
       focus: focusRef.current,
       // The rivers are placed against the whole network, so they only make
       // sense when the whole network is on screen.
@@ -305,6 +313,7 @@ export default function App() {
   // Hero figure: mean headway coefficient of variation across the visible
   // lines. Wait time is a consequence of this number, not the other way round.
   const [hero, setHero] = useState({ cv: null, cvRun: null, wait: null, hold: null })
+  const [pickedTrain, setPickedTrain] = useState(null)
   useEffect(() => {
     // Exponential smoothing. The live spread genuinely jitters tick to tick, and
     // an unsmoothed readout flickers too fast to read without misrepresenting
@@ -315,6 +324,11 @@ export default function App() {
       const s = focusRef.current ? all.filter((x) => x.line === focusRef.current) : all
       if (!s.length) return
       const live = liveRef.current
+      if (pickedRef.current) {
+        const st = all.find((x) => x.line === pickedRef.current.line)
+        const tr = st?.trains?.[pickedRef.current.index]
+        if (tr) setPickedTrain({ ...tr, index: pickedRef.current.index })
+      }
       setHero((h) => ({
         // Live, so it agrees with the ribbons directly beneath it.
         cv: ease(h.cv, focusRef.current ? s[0].cvNow : live.cv),
@@ -426,8 +440,42 @@ export default function App() {
       </div>
 
       <div className="stage">
-        <canvas ref={stageRef} />
+        <canvas
+          ref={stageRef}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            const mx = e.clientX - r.left
+            const my = e.clientY - r.top
+            // Nearest train within a finger sized radius, so a tap does not
+            // have to land on a fourteen pixel capsule.
+            let best = null
+            for (const h of hitsRef.current) {
+              const d = Math.hypot(h.x - mx, h.y - my)
+              if (d < 22 && (!best || d < best.d)) best = { d, line: h.line, index: h.index }
+            }
+            // Resolved from the frame that was just drawn, not left to the
+            // readout timer. A click should answer immediately.
+            if (best) {
+              setPicked({ line: best.line, index: best.index })
+              const st = sampledRef.current.find((x) => x.line === best.line)
+              const tr = st?.trains?.[best.index]
+              if (tr) setPickedTrain({ ...tr, index: best.index })
+            } else {
+              setPicked(null)
+              setPickedTrain(null)
+            }
+          }}
+        />
       </div>
+
+      <Inspector
+        train={picked ? pickedTrain : null}
+        line={picked?.line}
+        onClear={() => {
+          setPicked(null)
+          setPickedTrain(null)
+        }}
+      />
 
       <Legend />
 

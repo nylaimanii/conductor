@@ -54,7 +54,8 @@ function approachPerStation(sampled) {
 }
 
 export function drawScene(ctx, opts) {
-  const { width, height, lines, t, focus = null, backdrop = false } = opts
+  const { width, height, lines, t, focus = null, backdrop = false, hits = null, selected = null } = opts
+  if (hits) hits.length = 0
 
   ctx.fillStyle = TILE
   ctx.fillRect(0, 0, width, height)
@@ -149,6 +150,20 @@ export function drawScene(ctx, opts) {
       const dip = -wind * 3.2 * tr.dir
       const ux = Math.cos(p.angle)
       const uy = Math.sin(p.angle)
+
+      // Screen position of every train on this frame, in CSS pixels, so a
+      // click can be matched to one without redoing the fit transform.
+      if (hits) hits.push({ line: s.line, index: i, x: dx + p.x * scale, y: dy + p.y * scale })
+
+      if (selected && selected.line === s.line && selected.index === i) {
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 19, 0, Math.PI * 2)
+        ctx.lineWidth = 2.5
+        ctx.strokeStyle = INK
+        ctx.stroke()
+        ctx.restore()
+      }
 
       drawTrain(ctx, {
         x: p.x + ux * dip,
