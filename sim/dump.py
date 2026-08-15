@@ -35,23 +35,23 @@ METRIC_SEEDS = (100, 101, 102, 103, 104)
 SUBSAMPLE = 2  # every 2nd tick, per contract
 
 LABELS = {
-    "000": "untrained",
-    "025": "25% trained",
-    "050": "50% trained",
-    "100": "trained",
+    "001": "1% trained",
+    "003": "3% trained",
+    "006": "6% trained",
+    "012": "12% trained",
+    "025": "trained",
     "baseline": "fixed timetable",
 }
 
-# Every line gets the full progression.
+# Every line gets the full ladder. Six tags, five lines, thirty files.
 #
-# Contract amended by Nyla to allow all five tags on all five lines. The
-# JSON shape is unchanged, this only adds files. The transfer lines need the
-# intermediate checkpoints so the improvement arrives as a ramp rather than
-# one jump between 000 and 100.
+# Log spaced checkpoints matching CHECKPOINT_FRACTIONS in train.py. The
+# ladder sits entirely inside the region where learning actually happens,
+# and 025 is the final shipped policy, early stopped at 5,000,000 timesteps.
 #
-# 025 and 050 on G, 7, 1 and 6 are the SAME L-trained checkpoints run
-# zero-shot. Nothing is retrained per line.
-ALL_TAGS = ["baseline", "000", "025", "050", "100"]
+# Every non-baseline tag on G, 7, 1 and 6 is the SAME L-trained checkpoint
+# run zero-shot. Nothing is retrained per line.
+ALL_TAGS = ["baseline", "001", "003", "006", "012", "025"]
 TAGS_BY_LINE = {ln: list(ALL_TAGS) for ln in LINES}
 
 
@@ -158,18 +158,25 @@ def validate(payload: dict, cfg):
 # ---------------------------------------------------------------------
 
 def dump_line(line: str, trained_on: str = "L", episode_ticks: int = 900,
-              out_dir: Optional[str] = None) -> list:
+              out_dir: Optional[str] = None,
+              only_tags: Optional[list] = None) -> list:
     out_dir = out_dir or OUT_DIR
     os.makedirs(out_dir, exist_ok=True)
 
     cfg = build_line_config(line, episode_ticks=episode_ticks)
 
-    # timetable baseline first, everything is measured against it
+    # timetable baseline first, everything is measured against it.
+    # needed even when re-emitting a subset, since baseline_wait is the
+    # denominator of improvement_pct in every file.
     base_waits = [run_baseline(cfg, s).mean_wait() for s in METRIC_SEEDS]
     baseline_wait = float(np.mean(base_waits))
 
+    tags = TAGS_BY_LINE[line]
+    if only_tags:
+        tags = [t for t in tags if t in only_tags]
+
     rows = []
-    for tag in TAGS_BY_LINE[line]:
+    for tag in tags:
         if tag == "baseline":
             env = run_baseline(cfg, DUMP_SEED, record=True)
             mean_wait = baseline_wait
@@ -211,6 +218,8 @@ def main():
     ap.add_argument("--episode-ticks", type=int, default=900)
     ap.add_argument("--out", default=None,
                     help="override output dir (for dry runs)")
+    ap.add_argument("--tags", nargs="*", default=None,
+                    help="only emit these tags, for targeted re-emits")
     args = ap.parse_args()
 
     print(f"writing to {args.out or OUT_DIR}")
@@ -218,7 +227,8 @@ def main():
     for line in args.lines:
         print(f"\nline {line}:")
         all_rows.extend(dump_line(line, args.trained_on,
-                                  args.episode_ticks, args.out))
+                                  args.episode_ticks, args.out,
+                                  only_tags=args.tags))
 
     print("\n" + "=" * 70)
     print("SUMMARY (all weights trained on L only)")

@@ -2,10 +2,14 @@
 sim writes, web reads. neither agent changes this without asking Nyla.
 
 path: /web/public/runs/{LINE}_{TAG}.json
-tags: 000, 025, 050, 100, baseline
-all five lines (L, G, 7, 1, 6) get all five tags, so 25 files.
-025 and 050 on G, 7, 1 and 6 are the L-trained weights run zero-shot.
-nothing is retrained per line.
+tags: 001, 003, 006, 012, 025, baseline
+all five lines (L, G, 7, 1, 6) get all six tags, so 30 files.
+
+025 is the final shipped policy, cut at 5,000,000 timesteps.
+tags are log spaced across the region where learning actually happens,
+as a percentage of the original 20,000,000 step schedule.
+every non-baseline tag on G, 7, 1 and 6 is the L-trained weights run
+zero-shot. nothing is retrained per line.
 
 {
   "line": "L",

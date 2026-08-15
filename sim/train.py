@@ -7,9 +7,10 @@ just another row. That is what makes the policy fleet-size agnostic, and
 combined with the fully normalized observation it is why the same weights
 can be dropped onto the G, 7, 1 and 6 without retraining.
 
-Checkpoints are written at 0, 25, 50 and 100 percent of training. 0 percent
-is the untrained network, saved before any gradient step, which is the
-honest "before" for the demo.
+Checkpoints are log spaced across the region where learning actually happens
+(1, 3, 6, 12 and 25 percent), and training early stops at 25 percent, which
+is the shipped policy. 0 percent is the untrained network, saved before any
+gradient step, which is the honest "before" for the demo.
 """
 
 import argparse
@@ -28,7 +29,25 @@ from mta_data import build_line_config
 HERE = os.path.dirname(os.path.abspath(__file__))
 CKPT_DIR = os.path.join(HERE, "checkpoints")
 
-CHECKPOINT_FRACTIONS = [0.25, 0.50, 1.00]
+# Log spaced inside the region where learning actually happens, and early
+# stopped at 25 percent, which is the shipped policy.
+#
+# Almost everything is learned in the first quarter: bunching is essentially
+# gone by 10 percent and the back three quarters of the run only jitter. Both
+# linear tags (25/50/100) and a ladder running out to 100 leave the scrubber
+# visually flat through the middle, so the ladder now sits entirely inside
+# the interesting region.
+#
+# Fractions stay relative to the ORIGINAL 20,000,000 step schedule even
+# though training stops at 25 percent of it. That keeps the entropy anneal
+# identical to the full length run, so these are the exact same weights that
+# run passed through rather than a differently scheduled retrain. Training is
+# deterministic: an interrupted 20M run reproduced the previous one to the
+# digit at both 25 and 50 percent.
+#
+# Real checkpoints saved at real step counts. Nothing interpolated.
+CHECKPOINT_FRACTIONS = [0.01, 0.03, 0.06, 0.12, 0.25]
+ANNEAL_HORIZON = 20_000_000
 N_ENV_COPIES = 8
 
 # Entropy is annealed from high to low, and it is the single thing that
@@ -127,7 +146,7 @@ class CheckpointAtFractions(BaseCallback):
         self.total_steps = total_steps
         self.cfg = cfg
         self.line = line
-        self.pending = [(f, int(f * total_steps))
+        self.pending = [(f, int(f * ANNEAL_HORIZON))
                         for f in CHECKPOINT_FRACTIONS]
         self.t0 = time.time()
 
@@ -142,6 +161,11 @@ class CheckpointAtFractions(BaseCallback):
             print(f"  [{tag}%] steps={self.num_timesteps:>9,}  "
                   f"mean_wait={w:7.2f}  cv={cv:.3f}  hold={hp:5.1f}%  "
                   f"({el / 60:.1f} min)", flush=True)
+        if not self.pending:
+            # early stop: 25 percent is the shipped policy, the rest of the
+            # schedule only jitters. returning False ends learn().
+            print("  early stop, ladder complete", flush=True)
+            return False
         return True
 
 
@@ -191,7 +215,7 @@ def main():
           f"hold={hp0:5.1f}%  (untrained)", flush=True)
 
     cb = CallbackList([
-        AnnealEntropy(args.steps),
+        AnnealEntropy(ANNEAL_HORIZON),
         CheckpointAtFractions(args.steps, cfg, args.line),
     ])
     t0 = time.time()
