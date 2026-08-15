@@ -27,6 +27,13 @@ from line_config import LineConfig
 
 OBS_DIM = 12
 
+# Indices into the observation vector. Named so the trajectory dumper can
+# export exactly the values the policy reads, rather than a reconstruction
+# that might drift from it.
+OBS_HEADWAY_AHEAD = 2
+OBS_HEADWAY_BEHIND = 3
+OBS_DWELL = 5
+
 # actions
 DEPART = 0
 HOLD = 1
@@ -518,7 +525,16 @@ class HeadwayEnv(ParallelEnv):
     # ------------------------------------------------------------------
 
     def _capture(self):
-        """One frame of raw state. The dumper shapes it to the contract."""
+        """
+        One frame of raw state. The dumper shapes it to the contract.
+
+        The per-train obs slice is taken straight from _observe, so the
+        values written to the run files are byte for byte the ones the
+        policy conditioned on at that tick. Anything reconstructed
+        downstream would risk disagreeing with the network's actual input,
+        which is exactly the failure the interp panel is trying to avoid.
+        """
+        obs = [self._observe(i) for i in range(self.cfg.n_trains)]
         self.frames.append({
             "t": self.t,
             "pos": [round(float(p), 2) for p in self.pos],
@@ -526,6 +542,14 @@ class HeadwayEnv(ParallelEnv):
                         for i in range(self.cfg.n_trains)],
             "holding": [bool(h) for h in self.held],
             "waiting": [len(q) for q in self.queues],
+            "obs": [
+                {
+                    "headway_ahead_ratio": float(o[OBS_HEADWAY_AHEAD]),
+                    "headway_behind_ratio": float(o[OBS_HEADWAY_BEHIND]),
+                    "dwell_over_max_dwell": float(o[OBS_DWELL]),
+                }
+                for o in obs
+            ],
         })
 
     def mean_wait(self) -> float:

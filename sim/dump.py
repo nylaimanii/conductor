@@ -103,10 +103,19 @@ def build_payload(line: str, tag: str, cfg, frames, mean_wait: float,
             "trains": [
                 # pos is a float station index: 3.42 means 42% of the way
                 # from station 3 to station 4. rounded to 2dp per contract.
+                #
+                # obs carries the three normalized features the interp panel
+                # plots, exactly as the policy sees them: both headway
+                # ratios are gap divided by the line's own mean headway then
+                # clipped at 3 and divided by 3, so 0.33 is perfectly even
+                # spacing. dwell is ticks dwelled over max_dwell. All three
+                # are dimensionless and in [0,1], same 2dp rounding as pos.
                 {"pos": round(float(p), 2),
                  "onboard": int(o),
-                 "holding": bool(h)}
-                for p, o, h in zip(f["pos"], f["onboard"], f["holding"])
+                 "holding": bool(h),
+                 "obs": {k: round(float(v), 2) for k, v in ob.items()}}
+                for p, o, h, ob in zip(f["pos"], f["onboard"],
+                                       f["holding"], f["obs"])
             ],
             "waiting": [int(w) for w in f["waiting"]],
         })
@@ -148,9 +157,17 @@ def validate(payload: dict, cfg):
         assert len(tk["waiting"]) == n, "waiting must be one int per station"
         assert len(tk["trains"]) == cfg.n_trains, "train count changed"
         for tr in tk["trains"]:
-            assert set(tr) == {"pos", "onboard", "holding"}
+            assert set(tr) == {"pos", "onboard", "holding", "obs"}
             assert 0.0 <= tr["pos"] <= n - 1, f"pos out of range {tr['pos']}"
             assert isinstance(tr["holding"], bool)
+            assert set(tr["obs"]) == {"headway_ahead_ratio",
+                                      "headway_behind_ratio",
+                                      "dwell_over_max_dwell"}
+            for key, val in tr["obs"].items():
+                # every observation feature is normalized to [0,1] by
+                # construction. if one escapes, the interp panel would plot
+                # a dot outside its own axes.
+                assert 0.0 <= val <= 1.0, f"obs {key} out of [0,1]: {val}"
     ts = [tk["t"] for tk in payload["ticks"]]
     assert ts == sorted(ts), "ticks out of order"
     assert set(payload["metrics"]) == {"mean_wait", "baseline_wait",
