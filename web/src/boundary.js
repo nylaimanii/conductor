@@ -76,9 +76,11 @@ function fieldFor(doc) {
 }
 
 const PAD = { l: 54, r: 16, t: 14, b: 40 }
+const PAD_COMPACT = { l: 10, r: 10, t: 10, b: 10 }
 
 export function drawBoundary(ctx, opts) {
-  const { width, height, doc, lines, t, showTrains = true } = opts
+  const { width, height, doc, lines, t, showTrains = true, compact = false } = opts
+  const PADDING = compact ? PAD_COMPACT : PAD
 
   ctx.fillStyle = TILE
   ctx.fillRect(0, 0, width, height)
@@ -87,13 +89,13 @@ export function drawBoundary(ctx, opts) {
   // The grid is square and both axes are normalised to [0,1], so the plot is
   // drawn square. Stretching it to the panel skews the gradient and makes a
   // boundary read as steeper in whichever direction happens to be shorter.
-  const availW = Math.max(10, width - PAD.l - PAD.r)
-  const availH = Math.max(10, height - PAD.t - PAD.b)
+  const availW = Math.max(10, width - PADDING.l - PADDING.r)
+  const availH = Math.max(10, height - PADDING.t - PADDING.b)
   const side = Math.min(availW, availH)
   const w = side
   const h = side
-  const ox = PAD.l + (availW - side) / 2
-  const oy = PAD.t + (availH - side) / 2
+  const ox = PADDING.l + (availW - side) / 2
+  const oy = PADDING.t + (availH - side) / 2
 
   // The field, smoothed. It is a probability surface sampled on a coarse grid,
   // so interpolating between samples is a fairer picture of it than blocks.
@@ -116,7 +118,9 @@ export function drawBoundary(ctx, opts) {
   const px = (v) => ox + ((v - x0) / (x1 - x0 || 1)) * w
   const py = (v) => oy + h - ((v - y0) / (y1 - y0 || 1)) * h
 
-  // Axes.
+  // Axes. Suppressed in compact mode: five small multiples share one set of
+  // axes, and repeating them five times is noise.
+  if (!compact) {
   ctx.font = `500 11px ${MONO_FONT}`
   ctx.fillStyle = INK
   ctx.textAlign = 'center'
@@ -139,6 +143,7 @@ export function drawBoundary(ctx, opts) {
   ctx.fillText(String(y1), ox - 6, oy + 10)
   ctx.textBaseline = 'top'
   ctx.fillText(String(y0), ox - 6, oy + h - 10)
+  }
 
   // Where the shipped policy actually operates. Most of the swept domain is
   // extrapolation the policy never sees, and an edge out there is not evidence
@@ -247,20 +252,24 @@ export function drawBoundary(ctx, opts) {
 // Legend strip for the ramp.
 export function drawScale(ctx, width, height) {
   ctx.clearRect(0, 0, width, height)
-  const w = Math.max(10, width - 92)
+  const w = Math.max(10, width - 150)
   for (let i = 0; i < w; i++) {
     const [r, g, b] = ramp(i / (w - 1))
     ctx.fillStyle = `rgb(${r},${g},${b})`
-    ctx.fillRect(i, 4, 1, height - 16)
+    ctx.fillRect(i, 2, 1, height - 15)
   }
   ctx.strokeStyle = INK
   ctx.lineWidth = 1
-  ctx.strokeRect(0.5, 4.5, w - 1, height - 17)
+  ctx.strokeRect(0.5, 2.5, w - 1, height - 16)
   ctx.font = `500 9px ${MONO_FONT}`
   ctx.fillStyle = INK
   ctx.textBaseline = 'middle'
   ctx.textAlign = 'left'
-  ctx.fillText('chance it waits  0', w + 6, height / 2)
+  ctx.fillText('chance it waits', w + 8, height / 2)
+  ctx.font = `500 9px ${MONO_FONT}`
+  ctx.fillStyle = 'rgba(22,24,26,0.6)'
+  ctx.textAlign = 'left'
+  ctx.fillText('0', 1, height - 2)
   ctx.textAlign = 'right'
-  ctx.fillText('1', width, height / 2)
+  ctx.fillText('1', w - 1, height - 2)
 }

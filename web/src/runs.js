@@ -81,6 +81,10 @@ export const timestepsFor = (u) => Math.round(nearestRung(u).frac * TOTAL_TIMEST
 // Commentary for the rung currently on screen, or null if it needs none.
 export const noteFor = (u) => nearestRung(u).note ?? null
 
+// Commentary attached to a specific checkpoint, for panels that show every
+// rung at once rather than one at a time.
+export const noteForTag = (tag) => LADDER.find((c) => c.tag === tag)?.note ?? null
+
 // Every tag needed for a given scrubber value: exactly one file per line.
 export function tagsNeeded(u) {
   const tag = nearestRung(u).tag

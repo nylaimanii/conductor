@@ -14,8 +14,16 @@
 // so a file that does not contain the pairing it is named for is caught rather
 // than mislabelled on screen.
 export const SURFACES = [
-  { id: 'primary', label: 'dwell x headway behind', file: (tag) => `boundary_${tag}` },
-  { id: 'spacing', label: 'headway ahead x behind', file: (tag) => `boundary_spacing_${tag}` },
+  {
+    id: 'spacing',
+    label: 'gap ahead vs gap behind',
+    file: (tag) => `boundary_spacing_${tag}`,
+  },
+  {
+    id: 'primary',
+    label: 'how long it has waited vs gap behind',
+    file: (tag) => `boundary_${tag}`,
+  },
 ]
 
 const fileFor = (surface, tag) =>
