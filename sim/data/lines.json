@@ -1,0 +1,1017 @@
+{
+ "_source": "data.ny.gov 39hk-dx4f + wujg-7c2s",
+ "_rush_window": "2023-10-02T00:00:00..2023-10-07T00:00:00 hours 7-9",
+ "lines": {
+  "L": [
+   {
+    "stop_id": "L01",
+    "name": "8 Av",
+    "lat": 40.739777,
+    "lon": -74.002578,
+    "rush_riders": 15939.0
+   },
+   {
+    "stop_id": "L02",
+    "name": "6 Av",
+    "lat": 40.737335,
+    "lon": -73.996786,
+    "rush_riders": 28707.0
+   },
+   {
+    "stop_id": "L03",
+    "name": "14 St-Union Sq",
+    "lat": 40.734789,
+    "lon": -73.99073,
+    "rush_riders": 36648.0
+   },
+   {
+    "stop_id": "L05",
+    "name": "3 Av",
+    "lat": 40.732849,
+    "lon": -73.986122,
+    "rush_riders": 1858.0
+   },
+   {
+    "stop_id": "L06",
+    "name": "1 Av",
+    "lat": 40.730953,
+    "lon": -73.981628,
+    "rush_riders": 19891.0
+   },
+   {
+    "stop_id": "L08",
+    "name": "Bedford Av",
+    "lat": 40.717304,
+    "lon": -73.956872,
+    "rush_riders": 33307.0
+   },
+   {
+    "stop_id": "L10",
+    "name": "Lorimer St",
+    "lat": 40.714063,
+    "lon": -73.950275,
+    "rush_riders": 16291.0
+   },
+   {
+    "stop_id": "L11",
+    "name": "Graham Av",
+    "lat": 40.714565,
+    "lon": -73.944053,
+    "rush_riders": 12368.0
+   },
+   {
+    "stop_id": "L12",
+    "name": "Grand St",
+    "lat": 40.711926,
+    "lon": -73.94067,
+    "rush_riders": 6416.0
+   },
+   {
+    "stop_id": "L13",
+    "name": "Montrose Av",
+    "lat": 40.707739,
+    "lon": -73.93985,
+    "rush_riders": 7617.0
+   },
+   {
+    "stop_id": "L14",
+    "name": "Morgan Av",
+    "lat": 40.706152,
+    "lon": -73.933147,
+    "rush_riders": 6802.0
+   },
+   {
+    "stop_id": "L15",
+    "name": "Jefferson St",
+    "lat": 40.706607,
+    "lon": -73.922913,
+    "rush_riders": 8310.0
+   },
+   {
+    "stop_id": "L16",
+    "name": "DeKalb Av",
+    "lat": 40.703811,
+    "lon": -73.918425,
+    "rush_riders": 15513.0
+   },
+   {
+    "stop_id": "L17",
+    "name": "Myrtle-Wyckoff Avs",
+    "lat": 40.699814,
+    "lon": -73.911586,
+    "rush_riders": 26290.0
+   },
+   {
+    "stop_id": "L19",
+    "name": "Halsey St",
+    "lat": 40.695602,
+    "lon": -73.904084,
+    "rush_riders": 13024.0
+   },
+   {
+    "stop_id": "L20",
+    "name": "Wilson Av",
+    "lat": 40.688764,
+    "lon": -73.904046,
+    "rush_riders": 5637.0
+   },
+   {
+    "stop_id": "L21",
+    "name": "Bushwick Av-Aberdeen St",
+    "lat": 40.682829,
+    "lon": -73.905249,
+    "rush_riders": 3148.0
+   },
+   {
+    "stop_id": "L22",
+    "name": "Broadway Junction",
+    "lat": 40.678856,
+    "lon": -73.90324,
+    "rush_riders": 8904.0
+   },
+   {
+    "stop_id": "L24",
+    "name": "Atlantic Av",
+    "lat": 40.675345,
+    "lon": -73.903097,
+    "rush_riders": 2071.0
+   },
+   {
+    "stop_id": "L25",
+    "name": "Sutter Av",
+    "lat": 40.669367,
+    "lon": -73.901975,
+    "rush_riders": 2441.0
+   },
+   {
+    "stop_id": "L26",
+    "name": "Livonia Av",
+    "lat": 40.664038,
+    "lon": -73.900571,
+    "rush_riders": 2863.0
+   },
+   {
+    "stop_id": "L27",
+    "name": "New Lots Av",
+    "lat": 40.658733,
+    "lon": -73.899232,
+    "rush_riders": 3622.0
+   },
+   {
+    "stop_id": "L28",
+    "name": "East 105 St",
+    "lat": 40.650573,
+    "lon": -73.899485,
+    "rush_riders": 3838.0
+   },
+   {
+    "stop_id": "L29",
+    "name": "Canarsie-Rockaway Pkwy",
+    "lat": 40.646654,
+    "lon": -73.90185,
+    "rush_riders": 3907.0
+   }
+  ],
+  "G": [
+   {
+    "stop_id": "G22",
+    "name": "Court Sq",
+    "lat": 40.746554,
+    "lon": -73.943832,
+    "rush_riders": 21504.0
+   },
+   {
+    "stop_id": "G24",
+    "name": "21 St",
+    "lat": 40.744065,
+    "lon": -73.949724,
+    "rush_riders": 1029.0
+   },
+   {
+    "stop_id": "G26",
+    "name": "Greenpoint Av",
+    "lat": 40.731352,
+    "lon": -73.954449,
+    "rush_riders": 10853.0
+   },
+   {
+    "stop_id": "G28",
+    "name": "Nassau Av",
+    "lat": 40.724635,
+    "lon": -73.951277,
+    "rush_riders": 9748.0
+   },
+   {
+    "stop_id": "G29",
+    "name": "Metropolitan Av",
+    "lat": 40.712792,
+    "lon": -73.951418,
+    "rush_riders": 16291.0
+   },
+   {
+    "stop_id": "G30",
+    "name": "Broadway",
+    "lat": 40.706092,
+    "lon": -73.950308,
+    "rush_riders": 4498.0
+   },
+   {
+    "stop_id": "G31",
+    "name": "Flushing Av",
+    "lat": 40.700377,
+    "lon": -73.950234,
+    "rush_riders": 2262.0
+   },
+   {
+    "stop_id": "G32",
+    "name": "Myrtle-Willoughby Avs",
+    "lat": 40.694568,
+    "lon": -73.949046,
+    "rush_riders": 7372.0
+   },
+   {
+    "stop_id": "G33",
+    "name": "Bedford-Nostrand Avs",
+    "lat": 40.689627,
+    "lon": -73.953522,
+    "rush_riders": 11675.0
+   },
+   {
+    "stop_id": "G34",
+    "name": "Classon Av",
+    "lat": 40.688873,
+    "lon": -73.96007,
+    "rush_riders": 7414.0
+   },
+   {
+    "stop_id": "G35",
+    "name": "Clinton-Washington Avs",
+    "lat": 40.688089,
+    "lon": -73.966839,
+    "rush_riders": 6354.0
+   },
+   {
+    "stop_id": "G36",
+    "name": "Fulton St",
+    "lat": 40.687119,
+    "lon": -73.975375,
+    "rush_riders": 3734.0
+   },
+   {
+    "stop_id": "A42",
+    "name": "Hoyt-Schermerhorn Sts",
+    "lat": 40.688484,
+    "lon": -73.985001,
+    "rush_riders": 7453.0
+   },
+   {
+    "stop_id": "F20",
+    "name": "Bergen St",
+    "lat": 40.686145,
+    "lon": -73.990862,
+    "rush_riders": 11954.0
+   },
+   {
+    "stop_id": "F21",
+    "name": "Carroll St",
+    "lat": 40.680303,
+    "lon": -73.995048,
+    "rush_riders": 15666.0
+   },
+   {
+    "stop_id": "F22",
+    "name": "Smith-9 Sts",
+    "lat": 40.67358,
+    "lon": -73.995959,
+    "rush_riders": 3443.0
+   },
+   {
+    "stop_id": "F23",
+    "name": "4 Av-9 St",
+    "lat": 40.670272,
+    "lon": -73.989779,
+    "rush_riders": 13725.0
+   },
+   {
+    "stop_id": "F24",
+    "name": "7 Av",
+    "lat": 40.666271,
+    "lon": -73.980305,
+    "rush_riders": 14991.0
+   },
+   {
+    "stop_id": "F25",
+    "name": "15 St-Prospect Park",
+    "lat": 40.660365,
+    "lon": -73.979493,
+    "rush_riders": 9272.0
+   },
+   {
+    "stop_id": "F26",
+    "name": "Fort Hamilton Pkwy",
+    "lat": 40.650782,
+    "lon": -73.975776,
+    "rush_riders": 10553.0
+   },
+   {
+    "stop_id": "F27",
+    "name": "Church Av",
+    "lat": 40.644041,
+    "lon": -73.979678,
+    "rush_riders": 13270.0
+   }
+  ],
+  "7": [
+   {
+    "stop_id": "701",
+    "name": "Flushing-Main St",
+    "lat": 40.7596,
+    "lon": -73.83003,
+    "rush_riders": 71515.0
+   },
+   {
+    "stop_id": "702",
+    "name": "Mets-Willets Point",
+    "lat": 40.754622,
+    "lon": -73.845625,
+    "rush_riders": 2423.0
+   },
+   {
+    "stop_id": "705",
+    "name": "111 St",
+    "lat": 40.75173,
+    "lon": -73.855334,
+    "rush_riders": 9578.0
+   },
+   {
+    "stop_id": "706",
+    "name": "103 St-Corona Plaza",
+    "lat": 40.749865,
+    "lon": -73.8627,
+    "rush_riders": 40676.0
+   },
+   {
+    "stop_id": "707",
+    "name": "Junction Blvd",
+    "lat": 40.749145,
+    "lon": -73.869527,
+    "rush_riders": 37716.0
+   },
+   {
+    "stop_id": "708",
+    "name": "90 St-Elmhurst Av",
+    "lat": 40.748408,
+    "lon": -73.876613,
+    "rush_riders": 23329.0
+   },
+   {
+    "stop_id": "709",
+    "name": "82 St-Jackson Hts",
+    "lat": 40.747659,
+    "lon": -73.883697,
+    "rush_riders": 5626.0
+   },
+   {
+    "stop_id": "710",
+    "name": "74 St-Broadway",
+    "lat": 40.746848,
+    "lon": -73.891394,
+    "rush_riders": 72312.0
+   },
+   {
+    "stop_id": "711",
+    "name": "69 St",
+    "lat": 40.746325,
+    "lon": -73.896403,
+    "rush_riders": 8982.0
+   },
+   {
+    "stop_id": "712",
+    "name": "61 St-Woodside",
+    "lat": 40.74563,
+    "lon": -73.902984,
+    "rush_riders": 26477.0
+   },
+   {
+    "stop_id": "713",
+    "name": "52 St",
+    "lat": 40.744149,
+    "lon": -73.912549,
+    "rush_riders": 8990.0
+   },
+   {
+    "stop_id": "714",
+    "name": "46 St-Bliss St",
+    "lat": 40.743132,
+    "lon": -73.918435,
+    "rush_riders": 17607.0
+   },
+   {
+    "stop_id": "715",
+    "name": "40 St-Lowery St",
+    "lat": 40.743781,
+    "lon": -73.924016,
+    "rush_riders": 12713.0
+   },
+   {
+    "stop_id": "716",
+    "name": "33 St-Rawson St",
+    "lat": 40.744587,
+    "lon": -73.930997,
+    "rush_riders": 2058.0
+   },
+   {
+    "stop_id": "718",
+    "name": "Queensboro Plaza",
+    "lat": 40.750582,
+    "lon": -73.940202,
+    "rush_riders": 16132.0
+   },
+   {
+    "stop_id": "719",
+    "name": "Court Sq",
+    "lat": 40.747023,
+    "lon": -73.945264,
+    "rush_riders": 21504.0
+   },
+   {
+    "stop_id": "720",
+    "name": "Hunters Point Av",
+    "lat": 40.742216,
+    "lon": -73.948916,
+    "rush_riders": 4203.0
+   },
+   {
+    "stop_id": "721",
+    "name": "Vernon Blvd-Jackson Av",
+    "lat": 40.742626,
+    "lon": -73.953581,
+    "rush_riders": 23663.0
+   },
+   {
+    "stop_id": "723",
+    "name": "Grand Central-42 St",
+    "lat": 40.751431,
+    "lon": -73.976041,
+    "rush_riders": 112159.0
+   },
+   {
+    "stop_id": "724",
+    "name": "5 Av",
+    "lat": 40.753821,
+    "lon": -73.981963,
+    "rush_riders": 8273.0
+   },
+   {
+    "stop_id": "725",
+    "name": "Times Sq-42 St",
+    "lat": 40.755477,
+    "lon": -73.987691,
+    "rush_riders": 144295.0
+   },
+   {
+    "stop_id": "726",
+    "name": "34 St-Hudson Yards",
+    "lat": 40.755882,
+    "lon": -74.00191,
+    "rush_riders": 7783.0
+   }
+  ],
+  "1": [
+   {
+    "stop_id": "101",
+    "name": "Van Cortlandt Park-242 St",
+    "lat": 40.889248,
+    "lon": -73.898583,
+    "rush_riders": 9614.0
+   },
+   {
+    "stop_id": "103",
+    "name": "238 St",
+    "lat": 40.884667,
+    "lon": -73.90087,
+    "rush_riders": 6355.0
+   },
+   {
+    "stop_id": "104",
+    "name": "231 St",
+    "lat": 40.878856,
+    "lon": -73.904834,
+    "rush_riders": 10898.0
+   },
+   {
+    "stop_id": "106",
+    "name": "Marble Hill-225 St",
+    "lat": 40.874561,
+    "lon": -73.909831,
+    "rush_riders": 5857.0
+   },
+   {
+    "stop_id": "107",
+    "name": "215 St",
+    "lat": 40.869444,
+    "lon": -73.915279,
+    "rush_riders": 2774.0
+   },
+   {
+    "stop_id": "108",
+    "name": "207 St",
+    "lat": 40.864621,
+    "lon": -73.918822,
+    "rush_riders": 6869.0
+   },
+   {
+    "stop_id": "109",
+    "name": "Dyckman St",
+    "lat": 40.860531,
+    "lon": -73.925536,
+    "rush_riders": 8258.0
+   },
+   {
+    "stop_id": "110",
+    "name": "191 St",
+    "lat": 40.855225,
+    "lon": -73.929412,
+    "rush_riders": 8983.0
+   },
+   {
+    "stop_id": "111",
+    "name": "181 St",
+    "lat": 40.849505,
+    "lon": -73.933596,
+    "rush_riders": 11789.0
+   },
+   {
+    "stop_id": "112",
+    "name": "168 St-Washington Hts",
+    "lat": 40.840556,
+    "lon": -73.940133,
+    "rush_riders": 17682.0
+   },
+   {
+    "stop_id": "113",
+    "name": "157 St",
+    "lat": 40.834041,
+    "lon": -73.94489,
+    "rush_riders": 12179.0
+   },
+   {
+    "stop_id": "114",
+    "name": "145 St",
+    "lat": 40.826551,
+    "lon": -73.95036,
+    "rush_riders": 10366.0
+   },
+   {
+    "stop_id": "115",
+    "name": "137 St-City College",
+    "lat": 40.822008,
+    "lon": -73.953676,
+    "rush_riders": 12972.0
+   },
+   {
+    "stop_id": "116",
+    "name": "125 St",
+    "lat": 40.815581,
+    "lon": -73.958372,
+    "rush_riders": 6478.0
+   },
+   {
+    "stop_id": "117",
+    "name": "116 St-Columbia University",
+    "lat": 40.807722,
+    "lon": -73.96411,
+    "rush_riders": 5410.0
+   },
+   {
+    "stop_id": "118",
+    "name": "Cathedral Pkwy (110 St)",
+    "lat": 40.803967,
+    "lon": -73.966847,
+    "rush_riders": 10158.0
+   },
+   {
+    "stop_id": "119",
+    "name": "103 St",
+    "lat": 40.799446,
+    "lon": -73.968379,
+    "rush_riders": 13084.0
+   },
+   {
+    "stop_id": "120",
+    "name": "96 St",
+    "lat": 40.793919,
+    "lon": -73.972323,
+    "rush_riders": 34432.0
+   },
+   {
+    "stop_id": "121",
+    "name": "86 St",
+    "lat": 40.788644,
+    "lon": -73.976218,
+    "rush_riders": 15939.0
+   },
+   {
+    "stop_id": "122",
+    "name": "79 St",
+    "lat": 40.783934,
+    "lon": -73.979917,
+    "rush_riders": 12249.0
+   },
+   {
+    "stop_id": "123",
+    "name": "72 St",
+    "lat": 40.778453,
+    "lon": -73.98197,
+    "rush_riders": 31270.0
+   },
+   {
+    "stop_id": "124",
+    "name": "66 St-Lincoln Center",
+    "lat": 40.77344,
+    "lon": -73.982209,
+    "rush_riders": 10661.0
+   },
+   {
+    "stop_id": "125",
+    "name": "59 St-Columbus Circle",
+    "lat": 40.768247,
+    "lon": -73.981929,
+    "rush_riders": 29536.0
+   },
+   {
+    "stop_id": "126",
+    "name": "50 St",
+    "lat": 40.761728,
+    "lon": -73.983849,
+    "rush_riders": 9107.0
+   },
+   {
+    "stop_id": "127",
+    "name": "Times Sq-42 St",
+    "lat": 40.75529,
+    "lon": -73.987495,
+    "rush_riders": 144295.0
+   },
+   {
+    "stop_id": "128",
+    "name": "34 St-Penn Station",
+    "lat": 40.750373,
+    "lon": -73.991057,
+    "rush_riders": 80847.0
+   },
+   {
+    "stop_id": "129",
+    "name": "28 St",
+    "lat": 40.747215,
+    "lon": -73.993365,
+    "rush_riders": 6836.0
+   },
+   {
+    "stop_id": "130",
+    "name": "23 St",
+    "lat": 40.744081,
+    "lon": -73.995657,
+    "rush_riders": 7606.0
+   },
+   {
+    "stop_id": "131",
+    "name": "18 St",
+    "lat": 40.74104,
+    "lon": -73.997871,
+    "rush_riders": 4352.0
+   },
+   {
+    "stop_id": "132",
+    "name": "14 St",
+    "lat": 40.737826,
+    "lon": -74.000201,
+    "rush_riders": 28707.0
+   },
+   {
+    "stop_id": "133",
+    "name": "Christopher St-Stonewall",
+    "lat": 40.733422,
+    "lon": -74.002906,
+    "rush_riders": 6979.0
+   },
+   {
+    "stop_id": "134",
+    "name": "Houston St",
+    "lat": 40.728251,
+    "lon": -74.005367,
+    "rush_riders": 4824.0
+   },
+   {
+    "stop_id": "135",
+    "name": "Canal St",
+    "lat": 40.722854,
+    "lon": -74.006277,
+    "rush_riders": 1797.0
+   },
+   {
+    "stop_id": "136",
+    "name": "Franklin St",
+    "lat": 40.719318,
+    "lon": -74.006886,
+    "rush_riders": 2813.0
+   },
+   {
+    "stop_id": "137",
+    "name": "Chambers St",
+    "lat": 40.715478,
+    "lon": -74.009266,
+    "rush_riders": 7968.0
+   },
+   {
+    "stop_id": "138",
+    "name": "WTC Cortlandt",
+    "lat": 40.711835,
+    "lon": -74.012188,
+    "rush_riders": 10019.0
+   },
+   {
+    "stop_id": "139",
+    "name": "Rector St",
+    "lat": 40.707513,
+    "lon": -74.013783,
+    "rush_riders": 6014.0
+   },
+   {
+    "stop_id": "142",
+    "name": "South Ferry",
+    "lat": 40.702068,
+    "lon": -74.013664,
+    "rush_riders": 19082.0
+   }
+  ],
+  "6": [
+   {
+    "stop_id": "601",
+    "name": "Pelham Bay Park",
+    "lat": 40.852462,
+    "lon": -73.828121,
+    "rush_riders": 7766.0
+   },
+   {
+    "stop_id": "602",
+    "name": "Buhre Av",
+    "lat": 40.84681,
+    "lon": -73.832569,
+    "rush_riders": 6420.0
+   },
+   {
+    "stop_id": "603",
+    "name": "Middletown Rd",
+    "lat": 40.843863,
+    "lon": -73.836322,
+    "rush_riders": 3594.0
+   },
+   {
+    "stop_id": "604",
+    "name": "Westchester Sq-E Tremont Av",
+    "lat": 40.839892,
+    "lon": -73.842952,
+    "rush_riders": 1349.0
+   },
+   {
+    "stop_id": "606",
+    "name": "Zerega Av",
+    "lat": 40.836488,
+    "lon": -73.847036,
+    "rush_riders": 4404.0
+   },
+   {
+    "stop_id": "607",
+    "name": "Castle Hill Av",
+    "lat": 40.834255,
+    "lon": -73.851222,
+    "rush_riders": 7228.0
+   },
+   {
+    "stop_id": "608",
+    "name": "Parkchester",
+    "lat": 40.833226,
+    "lon": -73.860816,
+    "rush_riders": 22430.0
+   },
+   {
+    "stop_id": "609",
+    "name": "St Lawrence Av",
+    "lat": 40.831509,
+    "lon": -73.867618,
+    "rush_riders": 4857.0
+   },
+   {
+    "stop_id": "610",
+    "name": "Morrison Av-Soundview",
+    "lat": 40.829521,
+    "lon": -73.874516,
+    "rush_riders": 6919.0
+   },
+   {
+    "stop_id": "611",
+    "name": "Elder Av",
+    "lat": 40.828584,
+    "lon": -73.879159,
+    "rush_riders": 6820.0
+   },
+   {
+    "stop_id": "612",
+    "name": "Whitlock Av",
+    "lat": 40.826525,
+    "lon": -73.886283,
+    "rush_riders": 2454.0
+   },
+   {
+    "stop_id": "613",
+    "name": "Hunts Point Av",
+    "lat": 40.820948,
+    "lon": -73.890549,
+    "rush_riders": 12017.0
+   },
+   {
+    "stop_id": "614",
+    "name": "Longwood Av",
+    "lat": 40.816104,
+    "lon": -73.896435,
+    "rush_riders": 3383.0
+   },
+   {
+    "stop_id": "615",
+    "name": "E 149 St",
+    "lat": 40.812118,
+    "lon": -73.904098,
+    "rush_riders": 5241.0
+   },
+   {
+    "stop_id": "616",
+    "name": "E 143 St-St Mary's St",
+    "lat": 40.808719,
+    "lon": -73.907657,
+    "rush_riders": 948.0
+   },
+   {
+    "stop_id": "617",
+    "name": "Cypress Av",
+    "lat": 40.805368,
+    "lon": -73.914042,
+    "rush_riders": 2172.0
+   },
+   {
+    "stop_id": "618",
+    "name": "Brook Av",
+    "lat": 40.807566,
+    "lon": -73.91924,
+    "rush_riders": 5324.0
+   },
+   {
+    "stop_id": "619",
+    "name": "3 Av-138 St",
+    "lat": 40.810476,
+    "lon": -73.926138,
+    "rush_riders": 9311.0
+   },
+   {
+    "stop_id": "621",
+    "name": "125 St",
+    "lat": 40.804138,
+    "lon": -73.937594,
+    "rush_riders": 22148.0
+   },
+   {
+    "stop_id": "622",
+    "name": "116 St",
+    "lat": 40.798629,
+    "lon": -73.941617,
+    "rush_riders": 12170.0
+   },
+   {
+    "stop_id": "623",
+    "name": "110 St",
+    "lat": 40.79502,
+    "lon": -73.94425,
+    "rush_riders": 11413.0
+   },
+   {
+    "stop_id": "624",
+    "name": "103 St",
+    "lat": 40.7906,
+    "lon": -73.947478,
+    "rush_riders": 11301.0
+   },
+   {
+    "stop_id": "625",
+    "name": "96 St",
+    "lat": 40.785672,
+    "lon": -73.95107,
+    "rush_riders": 13983.0
+   },
+   {
+    "stop_id": "626",
+    "name": "86 St",
+    "lat": 40.779492,
+    "lon": -73.955589,
+    "rush_riders": 34688.0
+   },
+   {
+    "stop_id": "627",
+    "name": "77 St",
+    "lat": 40.77362,
+    "lon": -73.959874,
+    "rush_riders": 19389.0
+   },
+   {
+    "stop_id": "628",
+    "name": "68 St-Hunter College",
+    "lat": 40.768141,
+    "lon": -73.96387,
+    "rush_riders": 10263.0
+   },
+   {
+    "stop_id": "629",
+    "name": "59 St",
+    "lat": 40.762526,
+    "lon": -73.967967,
+    "rush_riders": 20161.0
+   },
+   {
+    "stop_id": "630",
+    "name": "51 St",
+    "lat": 40.757107,
+    "lon": -73.97192,
+    "rush_riders": 19241.0
+   },
+   {
+    "stop_id": "631",
+    "name": "Grand Central-42 St",
+    "lat": 40.751776,
+    "lon": -73.976848,
+    "rush_riders": 112159.0
+   },
+   {
+    "stop_id": "632",
+    "name": "33 St",
+    "lat": 40.746081,
+    "lon": -73.982076,
+    "rush_riders": 16153.0
+   },
+   {
+    "stop_id": "633",
+    "name": "28 St",
+    "lat": 40.74307,
+    "lon": -73.984264,
+    "rush_riders": 11722.0
+   },
+   {
+    "stop_id": "634",
+    "name": "23 St-Baruch College",
+    "lat": 40.739864,
+    "lon": -73.986599,
+    "rush_riders": 15457.0
+   },
+   {
+    "stop_id": "635",
+    "name": "14 St-Union Sq",
+    "lat": 40.734673,
+    "lon": -73.989951,
+    "rush_riders": 36648.0
+   },
+   {
+    "stop_id": "636",
+    "name": "Astor Pl",
+    "lat": 40.730054,
+    "lon": -73.99107,
+    "rush_riders": 10388.0
+   },
+   {
+    "stop_id": "637",
+    "name": "Bleecker St",
+    "lat": 40.725915,
+    "lon": -73.994659,
+    "rush_riders": 14875.0
+   },
+   {
+    "stop_id": "638",
+    "name": "Spring St",
+    "lat": 40.722301,
+    "lon": -73.997141,
+    "rush_riders": 4776.0
+   },
+   {
+    "stop_id": "639",
+    "name": "Canal St",
+    "lat": 40.718803,
+    "lon": -74.000193,
+    "rush_riders": 10983.0
+   },
+   {
+    "stop_id": "640",
+    "name": "Brooklyn Bridge-City Hall",
+    "lat": 40.713065,
+    "lon": -74.004131,
+    "rush_riders": 11719.0
+   }
+  ]
+ }
+}
