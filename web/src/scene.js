@@ -2,6 +2,7 @@ import { LINE_COLORS, TILE, INK } from './palette.js'
 import { drawTrain, drawPassengers, drawStation } from './draw.js'
 import { posToXY, boundsOf, fitTransform } from './geometry.js'
 import { clamp01, easeOutBack, recoil } from './easing.js'
+import { drawBackdrop } from './backdrop.js'
 
 // The contract gives a passenger count per station, not per rider wait times,
 // so the three wait colors are derived from queue depth. A queue only gets
@@ -53,12 +54,14 @@ function approachPerStation(sampled) {
 }
 
 export function drawScene(ctx, opts) {
-  const { width, height, lines, t, focus = null } = opts
+  const { width, height, lines, t, focus = null, backdrop = false } = opts
 
   ctx.fillStyle = TILE
   ctx.fillRect(0, 0, width, height)
 
-  const docs = lines.filter(Boolean)
+  // Focus filters before the fit is computed, so a single line fills the frame
+  // rather than sitting in the space the whole network would have taken.
+  const docs = lines.filter(Boolean).filter((s) => !focus || s.line === focus)
   if (docs.length === 0) return
 
   const bounds = boundsOf(docs)
@@ -70,8 +73,11 @@ export function drawScene(ctx, opts) {
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
+  // Only under the full network. Fitted to one line the rivers would be
+  // scaled to that line's bounds and land in meaningless places.
+  if (backdrop) drawBackdrop(ctx)
+
   for (const s of docs) {
-    if (focus && s.line !== focus) continue
     const color = LINE_COLORS[s.line]
 
     // Ink underlay then color, the Vignelli weight without a shadow.
@@ -87,7 +93,6 @@ export function drawScene(ctx, opts) {
   }
 
   for (const s of docs) {
-    if (focus && s.line !== focus) continue
     const approach = approachPerStation(s)
 
     for (let i = 0; i < s.stations.length; i++) {
@@ -95,7 +100,7 @@ export function drawScene(ctx, opts) {
       drawStation(ctx, st.x, st.y, 4.6)
 
       const n = s.waiting[i] || 0
-      if (n <= 0) continue
+      if (n <= 0.02) continue
 
       // Lean toward the platform edge just before the train lands.
       const near = approach[i]
@@ -110,7 +115,8 @@ export function drawScene(ctx, opts) {
       drawPassengers(ctx, {
         x: st.x,
         y: st.y,
-        waits: waitStates(n),
+        waits: waitStates(Math.ceil(n)),
+        count: n,
         t,
         id: `${s.line}:${i}`,
         ...fr,
@@ -120,7 +126,6 @@ export function drawScene(ctx, opts) {
   }
 
   for (const s of docs) {
-    if (focus && s.line !== focus) continue
     const color = LINE_COLORS[s.line]
 
     for (let i = 0; i < s.trains.length; i++) {
@@ -135,9 +140,19 @@ export function drawScene(ctx, opts) {
       const atStation = clamp01(1 - frac / 0.18)
       const squash = tr.holding ? -0.07 * atStation : 0.06 * (1 - atStation) * clamp01(frac / 0.3)
 
+      // Anticipation. In the last tick before it pulls away, a standing train
+      // rocks back against its direction of travel, then releases. Reading the
+      // dip is what sells the departure as intended rather than as a cut, and
+      // it costs one sine.
+      const ttd = tr.ttd ?? 99
+      const wind = ttd > 0 && ttd < 1 ? Math.sin((1 - ttd) * Math.PI) : 0
+      const dip = -wind * 3.2 * tr.dir
+      const ux = Math.cos(p.angle)
+      const uy = Math.sin(p.angle)
+
       drawTrain(ctx, {
-        x: p.x,
-        y: p.y,
+        x: p.x + ux * dip,
+        y: p.y + uy * dip,
         angle: p.angle,
         color,
         len: 30,

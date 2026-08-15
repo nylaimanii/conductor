@@ -8,6 +8,7 @@ import {
   cvOf,
   runCv,
   directionsFor,
+  ticksToMove,
 } from './headway.js'
 
 const lerp = (a, b, f) => a + (b - a) * f
@@ -30,6 +31,7 @@ export function sampleLine(run, tickFloat) {
   const c0 = circuitAt(run, k0)
   const c1 = circuitAt(run, k1)
   const dirs = directionsFor(run)[k0]
+  const ttm = ticksToMove(run)[k0]
 
   const cs = []
   const trains = []
@@ -43,12 +45,18 @@ export function sampleLine(run, tickFloat) {
       onboard: tr.onboard,
       holding: tr.holding,
       dir: dirs[i] > 0 ? 1 : -1,
+      // Time until this train pulls away, in ticks, counting down smoothly
+      // through the current tick. Drives the anticipation dip.
+      ttd: ttm[i] - ft,
     })
   }
 
   const w0 = run.ticks[k0].waiting
   const w1 = run.ticks[k1].waiting
-  const waiting = w0.map((v, s) => Math.max(0, Math.round(lerp(v, w1[s] ?? v, ft))))
+  // Left as floats on purpose. Rounding here makes a whole dot vanish the
+  // instant a tick flips, which reads as a pop; the fractional part is what
+  // lets the crowd drain one rider at a time.
+  const waiting = w0.map((v, s) => Math.max(0, lerp(v, w1[s] ?? v, ft)))
 
   const gaps = gapsOf(cs, C)
 

@@ -23,16 +23,37 @@ function ViewSwitch({ view, setView }) {
   )
 }
 
+// The one breakpoint. Below it the network shows a single line at a time,
+// because five lines at phone width is an unreadable tangle. This is the only
+// place layout branches on width.
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 760px)')
+    const on = (e) => setNarrow(e.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return narrow
+}
+
 // Ticks consumed per second at 1x. The runs hold 200 subsampled ticks, so a
 // full pass is a bit under twenty seconds.
 const TICKS_PER_SEC = 12
 
 export default function App() {
   const [view, setView] = useState('network')
+  const narrow = useIsNarrow()
+  const [soloLine, setSoloLine] = useState('L')
   const [scrub, setScrub] = useState(0)
   const [playing, setPlaying] = useState(true)
   const [speed, setSpeed] = useState(1)
   const [, bump] = useState(0)
+
+  const focusRef = useRef(null)
+  focusRef.current = narrow ? soloLine : null
 
   const scrubRef = useRef(scrub)
   scrubRef.current = scrub
@@ -109,11 +130,22 @@ export default function App() {
     }
 
     sampledRef.current = sampled
-    drawScene(ctx, { width, height, lines: sampled, t })
+    drawScene(ctx, {
+      width,
+      height,
+      lines: sampled,
+      t,
+      focus: focusRef.current,
+      // The rivers are placed against the whole network, so they only make
+      // sense when the whole network is on screen.
+      backdrop: !focusRef.current,
+    })
   })
 
   const ribbonRef = useDprCanvas((ctx, { width, height, t }) => {
-    drawRibbons(ctx, { width, height, lines: sampledRef.current, t })
+    const all = sampledRef.current
+    const rows = focusRef.current ? all.filter((s) => s.line === focusRef.current) : all
+    drawRibbons(ctx, { width, height, lines: rows, t })
   })
 
   // Hero figure: mean headway coefficient of variation across the visible
@@ -121,7 +153,8 @@ export default function App() {
   const [hero, setHero] = useState({ cv: null, wait: null })
   useEffect(() => {
     const id = setInterval(() => {
-      const s = sampledRef.current
+      const all = sampledRef.current
+      const s = focusRef.current ? all.filter((x) => x.line === focusRef.current) : all
       if (!s.length) return
       setHero({
         cv: s.reduce((a, x) => a + x.cvRun, 0) / s.length,
@@ -162,6 +195,20 @@ export default function App() {
         <ViewSwitch view={view} setView={setView} />
       </div>
 
+      {narrow && (
+        <div className="tabs">
+          {LINE_IDS.map((id) => (
+            <button
+              key={id}
+              className={`tab mono${id === soloLine ? ' tab-on' : ''}`}
+              onClick={() => setSoloLine(id)}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="stage">
         <canvas ref={stageRef} />
       </div>
@@ -172,7 +219,7 @@ export default function App() {
           <div className="hero-value mono">{hero.cv === null ? '--' : hero.cv.toFixed(3)}</div>
           <div className="hero-sub">lower is evenly spaced</div>
         </div>
-        <div className="ribbons" style={{ height: ribbonHeight(LINE_IDS.length) }}>
+        <div className="ribbons" style={{ height: ribbonHeight(narrow ? 1 : LINE_IDS.length) }}>
           <canvas ref={ribbonRef} />
         </div>
         <div className="secondary">

@@ -55,6 +55,33 @@ export function directionsFor(doc) {
   return out
 }
 
+const moveCache = new WeakMap()
+
+// Ticks until each train next moves. A train whose pos is unchanged across a
+// tick is sitting at a platform, and knowing how long is left before it pulls
+// away is what lets it dip backward in anticipation first. Computed with one
+// backward pass and memoized.
+export function ticksToMove(doc) {
+  const hit = moveCache.get(doc)
+  if (hit) return hit
+
+  const { ticks } = doc
+  const n = ticks.length
+  const nTrains = ticks[0]?.trains.length ?? 0
+  const out = Array.from({ length: n }, () => new Float32Array(nTrains))
+
+  for (let i = 0; i < nTrains; i++) {
+    // Nothing is known past the end of the run, so treat it as far away.
+    out[n - 1][i] = 99
+    for (let k = n - 2; k >= 0; k--) {
+      const moved = Math.abs(ticks[k + 1].trains[i].pos - ticks[k].trains[i].pos) > 1e-9
+      out[k][i] = moved ? 0 : out[k + 1][i] + 1
+    }
+  }
+  moveCache.set(doc, out)
+  return out
+}
+
 // Circuit coordinates of every train at tick index k.
 export function circuitAt(doc, k) {
   const C = circuitLength(doc)

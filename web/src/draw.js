@@ -1,5 +1,5 @@
 import { INK, TILE, WAIT_COLORS, MONO_FONT } from './palette.js'
-import { phaseFor, squashStretch } from './easing.js'
+import { phaseFor, squashStretch, clamp01, easeOutBack } from './easing.js'
 
 // Pure drawing primitives. Nothing in here reads run data, everything takes
 // explicit coordinates, so this module is stable regardless of the JSON shape.
@@ -120,10 +120,25 @@ export function drawPassengers(ctx, opts) {
   if (shown === 0) return
   const step = dotR * 2 + gap
   const standoff = 10.5
+  // count is the fractional queue length. Riders board one at a time off it.
+  const level = opts.count === undefined ? waits.length : opts.count
 
   for (let i = 0; i < shown; i++) {
     const state = waits[i] || 'calm'
     const ph = phaseFor(`${id}:${i}`) * Math.PI * 2
+
+    // Staggered boarding. Each dot leaves on its own threshold, jittered by a
+    // stable per rider phase, so a crowd drains as a run of individuals rather
+    // than every dot shrinking at once. The jitter spans roughly a tenth of a
+    // tick, which at playback speed lands in the forty to sixty millisecond
+    // band that stops it reading as a single mechanical event.
+    const jitter = phaseFor(`board:${id}:${i}`) * 0.55
+    const presence = clamp01(level - i + jitter)
+    if (presence <= 0.001) continue
+    // Overshoot on the way in, so a rider arriving on the platform settles
+    // rather than blinking into place.
+    const grow = easeOutBack(presence)
+
     // Each dot drifts on its own clock so the crowd reads as individuals
     // rather than one shape pulsing in unison.
     const sway = Math.sin(t * 1.15 + ph) * 0.55
@@ -132,14 +147,15 @@ export function drawPassengers(ctx, opts) {
     const col = i % PER_ROW
     const row = Math.floor(i / PER_ROW)
     const along = (col - (PER_ROW - 1) / 2) * step + sway
-    // Lean pulls the block in toward the track a beat before arrival.
-    const out = standoff + row * step - lean * 3.4
+    // Lean pulls the block in toward the track a beat before arrival, and a
+    // boarding rider slides the last of the way in as they go.
+    const out = standoff + row * step - lean * 3.4 - (1 - presence) * 4
 
     const px = x + tx * along + nx * out
     const py = y + ty * along + ny * out
 
     ctx.beginPath()
-    ctx.arc(px, py, dotR * breathe, 0, Math.PI * 2)
+    ctx.arc(px, py, Math.max(0.1, dotR * breathe * grow), 0, Math.PI * 2)
     ctx.fillStyle = WAIT_COLORS[state] || WAIT_COLORS.calm
     ctx.fill()
   }

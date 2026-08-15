@@ -367,4 +367,10 @@ canvas {
     order: 3;
     flex-basis: 100%;
   }
+
+  /* A single line rarely fills a tall box, so cap the stage rather than let
+     it stretch and leave the diagram floating in empty space. */
+  .stage {
+    flex: 0 0 42vh;
+  }
 }
