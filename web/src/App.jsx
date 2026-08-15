@@ -21,7 +21,7 @@ import { drawScene } from './scene.js'
 import { makeCamera2d, stepCamera2d, resetCamera2d, usePanZoom } from './pan.js'
 import { drawRibbons, ribbonHeight } from './ribbons.js'
 import { drawSparkline } from './sparkline.js'
-import { runCv, holdRate } from './headway.js'
+import { runCv, holdRate, longGapPct } from './headway.js'
 import Compare from './Compare.jsx'
 import Boundary from './Boundary.jsx'
 import Legend from './Legend.jsx'
@@ -375,6 +375,10 @@ export default function App() {
   const wantTag = nearestTagFor(LINE_IDS[0], scrub)
   const settled = LINE_IDS.every((l) => peekRun(l, wantTag))
 
+  // The hero is a state, not a figure. The figure sits quietly beside it.
+  const spacingState = (cv) =>
+    cv === null ? null : cv < 0.13 ? 'evenly spaced' : cv < 0.35 ? 'starting to bunch' : 'badly bunched'
+
   const pct = (from, to) =>
     from !== null && from > 0 && to !== null && to !== undefined ? ((from - to) / from) * 100 : null
   const vsTimetable = pct(refs.baseline, hero.cvRun)
@@ -383,6 +387,21 @@ export default function App() {
   // timetable in the compare view. They are different baselines and give
   // different signs, so each card names its own.
   const vsUntrainedWait = pct(refs.untrainedWait, hero.wait)
+
+  const linesNow = focusSel === 'all' ? LINE_IDS : [focusSel]
+  const avgLongGap = (tag) => {
+    const v = linesNow.map((l) => {
+      const d = peekRun(l, tag)
+      return d ? longGapPct(d) : null
+    })
+    return v.some((x) => x === null) ? null : v.reduce((a, b) => a + b, 0) / v.length
+  }
+  const gapNow = avgLongGap(wantTag)
+  const gapBefore = avgLongGap(FIRST_TAG)
+
+  const holdingNow = sampledRef.current
+    .filter((x) => (focusSel === 'all' ? true : x.line === focusSel))
+    .reduce((a, x) => a + x.trains.filter((tr) => tr.holding).length, 0)
   const vsTimetableWait = pct(refs.baselineWait, hero.wait)
 
   if (view === 'boundary') {
@@ -431,216 +450,133 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <div className="topbar">
-        <div>
-          <div className="brand display">HEADWAY</div>
-          <h1 className="headline display">
-            you're not late because the train is slow. you're late because three of them
-            showed up at once.
-          </h1>
-          <p className="subline">
-            we taught the trains to fix it themselves. nobody wrote the rule.
-          </p>
-        </div>
-        <ViewSwitch view={view} setView={setView} />
-      </div>
-
-      <div className="tabs">
-        <button
-          className={`tab tab-wide mono${focusSel === 'all' ? ' tab-on' : ''}`}
-          onClick={() => setFocusSel('all')}
-        >
-          all 5
-        </button>
-        {LINE_IDS.map((id) => (
-          <button
-            key={id}
-            className={`tab mono${focusSel === id ? ' tab-on' : ''}`}
-            onClick={() => setFocusSel(id)}
-          >
-            {id}
-          </button>
-        ))}
-      </div>
-
+    <div className="app fsd-app">
       <div className="stage">
         <canvas ref={stageRef} />
       </div>
 
-      <Inspector
-        train={picked ? pickedTrain : null}
-        line={picked?.line}
-        onClear={() => {
-          setPicked(null)
-          setPickedTrain(null)
-        }}
-      />
+      {/* Corners only. Nothing sits over the middle of the surface. */}
+      <div className="hud hud-tl">
+        <div className="brand display">HEADWAY</div>
+        <h1 className="headline display">
+          you're not late because the train is slow. you're late because three of them
+          showed up at once.
+        </h1>
+        <p className="subline">we taught the trains to fix it themselves. nobody wrote the rule.</p>
+      </div>
 
-      <Legend />
+      <div className="hud hud-tr">
+        <ViewSwitch view={view} setView={setView} />
+        <div className="tabs">
+          <button
+            className={`tab tab-wide mono${focusSel === 'all' ? ' tab-on' : ''}`}
+            onClick={() => setFocusSel('all')}
+          >
+            all 5
+          </button>
+          {LINE_IDS.map((id) => (
+            <button
+              key={id}
+              className={`tab mono${focusSel === id ? ' tab-on' : ''}`}
+              onClick={() => setFocusSel(id)}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="panel">
-        <div className="hero">
-          <div className="hero-label">how evenly trains are spaced</div>
-          <div className="hero-value mono">
-            {hero.cv === null ? (
-              <span className="skeleton skeleton-lg" />
-            ) : !settled ? (
-              <span className="updating">updating</span>
-            ) : (
-              hero.cv.toFixed(3)
-            )}
-          </div>
-          <div className="hero-sub">
-            lower is better, 0 is perfect
-            {vsTimetable === null || !settled
-              ? ''
-              : vsTimetable >= 0
-                ? ` · ${vsTimetable.toFixed(0)}% better than the timetable`
-                : ` · ${Math.abs(vsTimetable).toFixed(0)}% worse than the timetable`}
-          </div>
+      {/* The one hero on screen: a state, with the figure quiet beside it. */}
+      <div className="hud hud-bl">
+        <div className="hero-state display">
+          {hero.cvRun === undefined || hero.cvRun === null ? (
+            <span className="skeleton skeleton-lg" />
+          ) : !settled ? (
+            'updating'
+          ) : (
+            spacingState(hero.cvRun)
+          )}
         </div>
-        <div className="hero">
-          <div className="hero-label">how often trains wait at the platform</div>
-          <div className="hero-value mono">
-            {hero.hold === null ? (
-              <span className="skeleton skeleton-lg" />
-            ) : !settled ? (
-              <span className="updating">updating</span>
-            ) : (
-              `${(hero.hold * 100).toFixed(0)}%`
-            )}
-          </div>
-          <div className="hero-sub">
-            {/* Read from the data rather than assumed. Which way this moves
-                depends on where the ladder is cut: a policy can learn to use
-                the action, or learn to stop spending it. Both have been true
-                of this run at different cuts, so the label follows the
-                numbers instead of asserting a direction. */}
-            {refs.firstHold === null || hero.hold === null
-              ? 'the only thing it can choose to do'
-              : noteFor(scrub)
-                ? 'waiting far too often'
-                : hero.hold > refs.firstHold * 1.3
-                  ? 'it learned when waiting helps'
-                  : hero.hold < refs.firstHold * 0.7
-                    ? 'waits less, picks better moments'
-                    : 'the only thing it can choose to do'}
-          </div>
+        <div className="hero-aside mono">
+          {hero.cvRun === undefined || hero.cvRun === null || !settled
+            ? ''
+            : `spacing ${hero.cvRun.toFixed(3)} on average, 0 is perfect`}
         </div>
-        <div
-          className="ribbons"
-          style={{ height: ribbonHeight(focus ? 1 : LINE_IDS.length) }}
-        >
+        <div className="ribbons ribbons-hud" style={{ height: ribbonHeight(focus ? 1 : LINE_IDS.length) }}>
           <canvas ref={ribbonRef} />
         </div>
-        <div className="secondary">
-          <div className="sec-label">average wait, vs before learning</div>
-          <div className="sec-value mono">
-            {hero.wait === null ? (
-              <span className="skeleton skeleton-sm" />
-            ) : !settled ? (
-              'updating'
-            ) : (
-              hero.wait.toFixed(2)
-            )}
-          </div>
-          <div className="sec-unit mono">
-            {vsUntrainedWait === null || !settled
-              ? 'min'
-              : vsUntrainedWait >= 0
-                ? `min · ${vsUntrainedWait.toFixed(0)}% shorter`
-                : `min · ${Math.abs(vsUntrainedWait).toFixed(0)}% longer`}
-          </div>
-        </div>
       </div>
 
-      <p className="note hard-line">
-        the 7 is the hardest line here: 12 trains over 22 stops, nearly twice as tight as any
-        other, so there is barely a gap to open up. it improves but never fully settles.
-      </p>
+      <div className="hud hud-br mono">
+        {holdingNow > 0 && (
+          <p className="say say-live">
+            {holdingNow === 1 ? 'a train is holding' : `${holdingNow} trains are holding`}, letting
+            the gap behind close.
+          </p>
+        )}
+        <p className="say">
+          the average rider waits about{' '}
+          <b>{hero.wait === null || !settled ? '--' : Math.round(hero.wait)}</b> minutes.
+        </p>
+        {gapNow !== null && gapBefore !== null && (
+          <p className="say">
+            {gapNow < 0.5 ? 'long gaps almost never happen now.' : 'long gaps still open up.'}{' '}
+            <span className="quiet">
+              {gapBefore.toFixed(1)}% of the time before learning, {gapNow.toFixed(1)}% now
+            </span>
+          </p>
+        )}
+        <p className="say quiet">
+          the 7 is the tightest line, 12 trains over 22 stops. it improves but never fully
+          settles.
+        </p>
+        {pickedTrain && (
+          <p className="say say-live">
+            {picked.line} train {pickedTrain.index + 1}
+            {typeof pickedTrain.obs?.headway_ahead_ratio === 'number'
+              ? ` · gap ahead ${pickedTrain.obs.headway_ahead_ratio.toFixed(2)}, behind ${pickedTrain.obs.headway_behind_ratio.toFixed(2)}`
+              : ''}
+          </p>
+        )}
+      </div>
 
-      <p className="tradeoff">
-        spacing gets much more even, average wait stays about the same versus a tuned
-        timetable. that is the tradeoff.
-      </p>
-
-      <div className="controls">
-        <button className="btn" onClick={() => setPlaying((p) => !p)}>
-          {playing ? 'pause' : 'play'}
-        </button>
-        <button className="btn mono" onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}>
-          {speed}x
-        </button>
-        <button className="btn mono" onClick={() => resetCamera2d(cam)}>
-          reset view
-        </button>
-        <div className="scrub-wrap">
-          <input
-            className="scrubber"
-            type="range"
-            min={0}
-            max={1000}
-            value={Math.round(scrub * 1000)}
-            /* Snapped to the nearest checkpoint. The bar has five stops, and a
-               free handle means a judge drags a third of it with nothing
-               changing and concludes it is broken. */
-            onChange={(e) => setScrub(snapToRung(Number(e.target.value) / 1000))}
-            aria-label="training progress"
-            list="rungs"
-          />
-          <datalist id="rungs">
-            {LADDER_FRACS.map((f) => (
-              <option key={f} value={Math.round(f * 1000)} />
-            ))}
-          </datalist>
-          <div className="scrub-ticks" aria-hidden="true">
-            {LADDER_FRACS.map((f) => (
-              <span
-                key={f}
-                className={`scrub-tick${Math.abs(f - scrub) < 1e-6 ? ' scrub-tick-on' : ''}`}
-                style={{ left: `${f * 100}%` }}
-              />
-            ))}
-          </div>
+      <div className="hud hud-bottom">
+        <div className={`say note-flag${noteFor(scrub) ? '' : ' note-empty'}`}>
+          {noteFor(scrub) || '\u00a0'}
         </div>
-        <div className="spark">
-          <canvas ref={sparkRef} />
+        <div className="track-line">
+          <span className="end mono">before learning</span>
+          <div className="scrub-wrap">
+            <input
+              className="scrubber"
+              type="range"
+              min={0}
+              max={1000}
+              value={Math.round(scrub * 1000)}
+              onChange={(e) => setScrub(snapToRung(Number(e.target.value) / 1000))}
+              aria-label="training progress"
+            />
+            <div className="scrub-ticks" aria-hidden="true">
+              {LADDER_FRACS.map((f) => (
+                <span key={f} className="scrub-tick" style={{ left: `${f * 100}%` }} />
+              ))}
+            </div>
+          </div>
+          <span className="end mono">after 2.4 million practice runs</span>
+        </div>
+        <div className="transport">
+          <button className="tab mono" onClick={() => setPlaying((p) => !p)}>
+            {playing ? 'pause' : 'play'}
+          </button>
+          <button className="tab mono" onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}>
+            {speed}x
+          </button>
+          <button className="tab mono" onClick={() => resetCamera2d(cam)}>
+            reset view
+          </button>
+          <span className="quiet mono">drag to pan, scroll to zoom, tap a train</span>
         </div>
       </div>
-      <p className="note">
-        after {timestepsFor(scrub).toLocaleString('en-US')} of{' '}
-        {TOTAL_TIMESTEPS.toLocaleString('en-US')} practice runs
-        {vsUntrained === null || !settled
-          ? ''
-          : vsUntrained >= 0
-            ? ` · spacing ${vsUntrained.toFixed(0)}% better than before learning`
-            : ` · spacing ${Math.abs(vsUntrained).toFixed(0)}% worse than before learning`}
-      </p>
-      {/* Always rendered, so the row keeps its height whether or not a
-          checkpoint has commentary. Letting it appear and disappear moved the
-          scrubber out from under the cursor mid drag. */}
-      <details className="glossary">
-        <summary>the technical names for all of this</summary>
-        <dl>
-          <dt>how evenly trains are spaced</dt>
-          <dd>coefficient of variation of headways, cv</dd>
-          <dt>how often trains wait at the platform</dt>
-          <dd>hold rate, the share of timesteps the policy takes the hold action</dd>
-          <dt>chance the train waits</dt>
-          <dd>P(hold), the policy's action probability</dd>
-          <dt>practice runs</dt>
-          <dd>environment timesteps of PPO training</dd>
-          <dt>the rule it taught itself</dt>
-          <dd>decision boundary, a two feature slice through the policy network</dd>
-          <dt>before learning / after learning</dt>
-          <dd>checkpoints 000 and 012, at 0 and 2.4M timesteps</dd>
-        </dl>
-      </details>
-
-      <p className={`note note-flag${noteFor(scrub) ? '' : ' note-empty'}`}>
-        {noteFor(scrub) || '\u00a0'}
-      </p>
     </div>
   )
 }

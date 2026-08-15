@@ -131,6 +131,26 @@ export function cvOf(gaps) {
   return Math.sqrt(varr) / mean
 }
 
+// Share of train ticks sitting behind a gap far larger than even spacing.
+// Even is a third; this counts anything past 0.6, roughly a gap almost twice
+// what it should be, which is the moment a rider is left standing on a platform
+// watching nothing arrive. Derived from the run, not quoted.
+const LONG_GAP = 0.6
+export function longGapPct(run) {
+  if (!run?.ticks) return null
+  let total = 0
+  let big = 0
+  for (const tick of run.ticks) {
+    for (const tr of tick.trains) {
+      const v = tr?.obs?.headway_ahead_ratio
+      if (typeof v !== 'number') continue
+      total++
+      if (v > LONG_GAP) big++
+    }
+  }
+  return total ? (big / total) * 100 : null
+}
+
 const holdCache = new WeakMap()
 
 // Fraction of train ticks the policy spent holding a train at a platform.
