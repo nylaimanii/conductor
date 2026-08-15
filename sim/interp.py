@@ -144,6 +144,15 @@ def main():
                          "slice and the axes")
     ap.add_argument("--grid", type=int, default=GRID_N)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--axes", nargs=2, default=None, metavar="FEATURE",
+                    help="force the two axis features instead of using the "
+                         "measured top two")
+    ap.add_argument("--name", default="boundary",
+                    help="output filename prefix, written as "
+                         "{name}_{tag}.json")
+    ap.add_argument("--pair-id", default="primary",
+                    help="identifier for this axis pairing, carried in the "
+                         "payload so the web side can tell them apart")
     args = ap.parse_args()
 
     out_dir = args.out or OUT_DIR
@@ -180,9 +189,22 @@ def main():
               f"{r['p_hold_std']:8.4f}  "
               f"[{r['observed_min']:.3f}, {r['observed_max']:.3f}]")
 
-    top = [r for r in ranking if r["p_hold_spread"] > 0][:2]
-    ix, iy = top[0]["index"], top[1]["index"]
-    print(f"\nchosen axes: x={FEATURE_NAMES[ix]}  y={FEATURE_NAMES[iy]}\n")
+    if args.axes:
+        for name in args.axes:
+            if name not in FEATURE_NAMES:
+                raise SystemExit(
+                    f"unknown feature {name!r}. valid: {FEATURE_NAMES}")
+        ix, iy = (FEATURE_NAMES.index(n) for n in args.axes)
+        rank_of = {r["feature"]: i + 1 for i, r in enumerate(ranking)}
+        print(f"\naxes forced: x={FEATURE_NAMES[ix]} "
+              f"(rank {rank_of[FEATURE_NAMES[ix]]}), "
+              f"y={FEATURE_NAMES[iy]} "
+              f"(rank {rank_of[FEATURE_NAMES[iy]]})\n")
+    else:
+        top = [r for r in ranking if r["p_hold_spread"] > 0][:2]
+        ix, iy = top[0]["index"], top[1]["index"]
+        print(f"\nchosen axes: x={FEATURE_NAMES[ix]}  "
+              f"y={FEATURE_NAMES[iy]}\n")
 
     held = {FEATURE_NAMES[k]: round(float(base[k]), 4)
             for k in range(OBS_DIM) if k not in (ix, iy)}
@@ -198,6 +220,8 @@ def main():
             "line": args.line,
             "checkpoint_steps": CHECKPOINT_STEPS.get(tag),
             "metric": "p_hold",
+            "pair_id": args.pair_id,
+            "axis_selection": "forced" if args.axes else "measured_top_two",
             "grid": {"nx": args.grid, "ny": args.grid},
             "x": {"feature": FEATURE_NAMES[ix],
                   "min": round(float(xs[0]), 6),
@@ -227,11 +251,11 @@ def main():
             "feature_ranking": ranking,
         }
 
-        path = os.path.join(out_dir, f"boundary_{tag}.json")
+        path = os.path.join(out_dir, f"{args.name}_{tag}.json")
         with open(path, "w") as f:
             json.dump(payload, f, separators=(",", ":"))
         kb = os.path.getsize(path) / 1024.0
-        print(f"  boundary_{tag}.json  P(hold) "
+        print(f"  {os.path.basename(path):<28} P(hold) "
               f"min={p.min():.3f} max={p.max():.3f} mean={p.mean():.3f}  "
               f"{kb:.0f}KB")
 
