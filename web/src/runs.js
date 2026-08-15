@@ -80,7 +80,10 @@ export function nearestTagFor(line, u) {
   const cps = CHECKPOINTS[line]
   const v = Math.max(0, Math.min(100, u * 100))
   let best = cps[0]
-  for (const c of cps) if (Math.abs(c - v) < Math.abs(best - v)) best = c
+  // Ties resolve to the later checkpoint. A line carrying only 000 and 100 sits
+  // exactly between them at the midpoint, and resolving that downward leaves
+  // the whole network reading untrained at half trained.
+  for (const c of cps) if (Math.abs(c - v) <= Math.abs(best - v)) best = c
   return tagFor(best)
 }
 

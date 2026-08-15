@@ -374,3 +374,20 @@ canvas {
     flex: 0 0 42vh;
   }
 }
+
+.spark {
+  width: 168px;
+  height: 36px;
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .spark {
+    width: 92px;
+  }
+}
+
+.tab-wide {
+  width: auto;
+  padding: 0 14px;
+}
