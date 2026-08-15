@@ -75,22 +75,26 @@ function useReferenceRuns() {
         firstHold: untr ? untr.reduce((a, d) => a + holdRate(d), 0) / untr.length : null,
       })
     }
-    const start = () => {
-      for (const line of LINE_IDS) {
-        for (const tag of ['baseline', FIRST_TAG]) {
-          loadRun(line, tag)
-            .then(collect)
-            .catch((err) => console.error('reference run unavailable:', err.message))
+    // Sequential on purpose. These are only needed for the two run level
+    // comparison figures, and run files are large enough that firing ten at
+    // once saturates a slow connection while the trains are still arriving.
+    const start = async () => {
+      for (const tag of ['baseline', FIRST_TAG]) {
+        for (const line of LINE_IDS) {
+          if (!alive) return
+          try {
+            await loadRun(line, tag)
+            collect()
+          } catch (err) {
+            console.error('reference run unavailable:', err.message)
+          }
         }
       }
     }
-    const idle = window.requestIdleCallback
-      ? window.requestIdleCallback(start, { timeout: 2500 })
-      : setTimeout(start, 900)
+    const idle = setTimeout(start, 2500)
     return () => {
       alive = false
-      if (window.cancelIdleCallback) window.cancelIdleCallback(idle)
-      else clearTimeout(idle)
+      clearTimeout(idle)
     }
   }, [])
   return refs
@@ -99,30 +103,19 @@ function useReferenceRuns() {
 function useCvCurve() {
   const [points, setPoints] = useState([])
   useEffect(() => {
-    let alive = true
-    const collect = () => {
+    // Polls the cache rather than fetching. The curve is a secondary read and
+    // is not worth four run files: at current file sizes prefetching the L
+    // ladder cost about 1.8 MB before the judge had touched anything. Points
+    // appear as the scrubber brings each checkpoint in.
+    const id = setInterval(() => {
       const pts = []
-      for (const { tag, steps } of CURVE_LADDER) {
+      for (const tag of LADDER_TAGS) {
         const doc = peekRun(CURVE_LINE, tag)
-        if (doc) pts.push({ x: steps, y: runCv(doc) })
+        if (doc) pts.push({ x: timestepsForTag(tag), y: runCv(doc) })
       }
-      if (alive) setPoints(pts)
-    }
-    const start = () => {
-      for (const { tag } of CURVE_LADDER) {
-        loadRun(CURVE_LINE, tag)
-          .then(collect)
-          .catch((err) => console.error('curve checkpoint unavailable:', err.message))
-      }
-    }
-    const idle = window.requestIdleCallback
-      ? window.requestIdleCallback(start, { timeout: 2500 })
-      : setTimeout(start, 900)
-    return () => {
-      alive = false
-      if (window.cancelIdleCallback) window.cancelIdleCallback(idle)
-      else clearTimeout(idle)
-    }
+      setPoints((prev) => (prev.length === pts.length ? prev : pts))
+    }, 600)
+    return () => clearInterval(id)
   }, [])
   return points
 }

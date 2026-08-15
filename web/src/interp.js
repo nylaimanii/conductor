@@ -61,6 +61,31 @@ export function loadBoundary(surface, tag) {
 
 export const peekBoundary = (surface, tag) => cache.get(fileFor(surface, tag)) || null
 
+// Perfectly even spacing on either headway axis. A train's gap to the one
+// ahead, as a fraction of the whole loop, is 1/n for n trains, and sim
+// normalises it so that even spacing lands on a third regardless of fleet
+// size. Below it the train has closed on the one ahead; above it, it has
+// fallen behind.
+export const EVEN_HEADWAY = 1 / 3
+
+// Share of train ticks the fleet spends within tol of even spacing. Derived
+// from the run rather than quoted, so it cannot drift away from the data it
+// describes.
+export function evennessPct(run, tol = 0.05) {
+  if (!run?.ticks) return null
+  let total = 0
+  let near = 0
+  for (const tick of run.ticks) {
+    for (const tr of tick.trains) {
+      const v = tr?.obs?.headway_ahead_ratio
+      if (typeof v !== 'number') continue
+      total++
+      if (Math.abs(v - EVEN_HEADWAY) <= tol) near++
+    }
+  }
+  return total ? (near / total) * 100 : null
+}
+
 // Actual span of the field, so the panel can state it rather than leaving the
 // reader to trust that a flat looking map is really flat.
 export function spanOf(doc) {

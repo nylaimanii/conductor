@@ -1,6 +1,6 @@
 import { INK, TILE, LINE_COLORS, MONO_FONT } from './palette.js'
 import { clamp01, phaseFor } from './easing.js'
-import { featureFor, axisFeature } from './interp.js'
+import { featureFor, axisFeature, EVEN_HEADWAY } from './interp.js'
 
 // THE DECISION BOUNDARY.
 //
@@ -170,6 +170,37 @@ export function drawBoundary(ctx, opts) {
     ctx.fillText('where it actually operates', rx + 2, ry - 3)
     ctx.restore()
   }
+
+  // The even spacing reference. Without it the axis is an unlabelled ratio and
+  // a judge has no way to tell which side of the plot is a train running late.
+  const isHeadway = (axis) => /headway/.test(axisFeature(axis) || '')
+  ctx.save()
+  ctx.setLineDash([2, 3])
+  ctx.lineWidth = 1
+  ctx.strokeStyle = 'rgba(22,24,26,0.55)'
+  ctx.font = `500 9px ${MONO_FONT}`
+  ctx.fillStyle = 'rgba(22,24,26,0.7)'
+  if (isHeadway(doc.x) && EVEN_HEADWAY >= x0 && EVEN_HEADWAY <= x1) {
+    const gx = px(EVEN_HEADWAY)
+    ctx.beginPath()
+    ctx.moveTo(gx, oy)
+    ctx.lineTo(gx, oy + h)
+    ctx.stroke()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'bottom'
+    ctx.fillText('even', gx, oy - 2)
+  }
+  if (isHeadway(doc.y) && EVEN_HEADWAY >= y0 && EVEN_HEADWAY <= y1) {
+    const gy = py(EVEN_HEADWAY)
+    ctx.beginPath()
+    ctx.moveTo(ox, gy)
+    ctx.lineTo(ox + w, gy)
+    ctx.stroke()
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'bottom'
+    ctx.fillText('even', ox + 3, gy - 2)
+  }
+  ctx.restore()
 
   if (!showTrains) return
 

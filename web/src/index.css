@@ -457,3 +457,13 @@ canvas {
 .tab-gap {
   width: 14px;
 }
+
+.key-note {
+  opacity: 0.85;
+  margin: 0;
+}
+
+.key-note strong {
+  font-weight: 700;
+  opacity: 1;
+}

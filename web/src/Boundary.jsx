@@ -8,6 +8,7 @@ import {
   axisFeature,
   spanOf,
   SURFACES,
+  evennessPct,
 } from './interp.js'
 import { sampleLine } from './sample.js'
 import { drawBoundary, drawScale } from './boundary.js'
@@ -89,6 +90,11 @@ export default function Boundary({ playing, speed }) {
   const sample = anyLine ? sampleLine(anyLine, headRef.current) : null
   const plottable = doc && sample ? axesResolvable(doc, sample) : true
   const span = spanOf(doc)
+  // Scoped to the line the boundary was measured on, and derived from that
+  // line's run rather than quoted, so the figure and the surface always
+  // describe the same thing.
+  const boundaryLine = doc?.line
+  const evenPct = boundaryLine ? evennessPct(peekRun(boundaryLine, tag)) : null
 
   return (
     <div className="boundary">
@@ -120,6 +126,20 @@ export default function Boundary({ playing, speed }) {
       <div className="boundary-stage">
         <canvas ref={canvasRef} />
       </div>
+
+      <p className="note key-note mono">
+        0.33 on either headway axis is perfectly even spacing. below 0.33 the train has
+        caught up to the one ahead. above 0.33 it is running late.
+        {evenPct !== null && (
+          <>
+            {' '}
+            <strong>
+              {boundaryLine} line sits within 0.05 of even on {evenPct.toFixed(1)}% of train ticks
+              {tag === FINAL_TAG ? '' : ` at ${tag}`}.
+            </strong>
+          </>
+        )}
+      </p>
 
       <div className="boundary-foot">
         <div className="scale">
