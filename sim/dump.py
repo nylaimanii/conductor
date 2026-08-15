@@ -35,11 +35,15 @@ METRIC_SEEDS = (100, 101, 102, 103, 104)
 SUBSAMPLE = 2  # every 2nd tick, per contract
 
 LABELS = {
+    "000": "untrained",
     "001": "1% trained",
     "003": "3% trained",
     "006": "6% trained",
-    "012": "12% trained",
-    "025": "trained",
+    # 012 is the shipped policy, so it carries the plain "trained" label.
+    # It beat 025 on cv on four of five lines and on wait on all five: at 25
+    # percent the entropy floor still has the policy over-holding (34.8
+    # percent of decisions against 14.0 at 012), which costs passenger wait.
+    "012": "trained",
     "baseline": "fixed timetable",
 }
 
@@ -51,7 +55,7 @@ LABELS = {
 #
 # Every non-baseline tag on G, 7, 1 and 6 is the SAME L-trained checkpoint
 # run zero-shot. Nothing is retrained per line.
-ALL_TAGS = ["baseline", "001", "003", "006", "012", "025"]
+ALL_TAGS = ["baseline", "000", "001", "003", "006", "012"]
 TAGS_BY_LINE = {ln: list(ALL_TAGS) for ln in LINES}
 
 

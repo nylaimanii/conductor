@@ -2,10 +2,14 @@
 sim writes, web reads. neither agent changes this without asking Nyla.
 
 path: /web/public/runs/{LINE}_{TAG}.json
-tags: 001, 003, 006, 012, 025, baseline
+tags: 000, 001, 003, 006, 012, baseline
 all five lines (L, G, 7, 1, 6) get all six tags, so 30 files.
 
-025 is the final shipped policy, cut at 5,000,000 timesteps.
+000 is the untrained network, saved before any gradient step. it is the
+honest "before learning" anchor.
+012 is the final shipped policy, cut at 2,400,048 timesteps, and carries
+the "trained" label.
+
 tags are log spaced across the region where learning actually happens,
 as a percentage of the original 20,000,000 step schedule.
 every non-baseline tag on G, 7, 1 and 6 is the L-trained weights run
