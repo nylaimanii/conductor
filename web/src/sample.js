@@ -46,6 +46,10 @@ export function sampleLine(run, tickFloat) {
       onboard: tr.onboard,
       holding: tr.holding,
       dir: dirs[i] > 0 ? 1 : -1,
+      // Passed straight through if the run carries per train observation
+      // values. The decision boundary panel plots from these; nothing on this
+      // side tries to reconstruct them.
+      obs: tr.obs,
       // Time until this train pulls away, in ticks, counting down smoothly
       // through the current tick. Drives the anticipation dip.
       ttd: ttm[i] - ft,
@@ -60,6 +64,19 @@ export function sampleLine(run, tickFloat) {
   const waiting = w0.map((v, s) => Math.max(0, lerp(v, w1[s] ?? v, ft)))
 
   const gaps = gapsOf(cs, C)
+
+  // Per train distance to the train in front, around the circuit. The sorted
+  // gaps above are the ribbon's business; this is per train, which is what
+  // places a train in the policy's decision space.
+  for (let i = 0; i < trains.length; i++) {
+    let ahead = Infinity
+    for (let j = 0; j < cs.length; j++) {
+      if (j === i) continue
+      const d = ((cs[j] - cs[i]) % C + C) % C
+      if (d > 0 && d < ahead) ahead = d
+    }
+    trains[i].gapAhead = Number.isFinite(ahead) ? ahead : C
+  }
 
   return {
     line: run.line,

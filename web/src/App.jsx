@@ -20,11 +20,12 @@ import { drawRibbons, ribbonHeight } from './ribbons.js'
 import { drawSparkline } from './sparkline.js'
 import { runCv, holdRate } from './headway.js'
 import Compare from './Compare.jsx'
+import Boundary from './Boundary.jsx'
 
 function ViewSwitch({ view, setView }) {
   return (
     <div className="viewswitch">
-      {['network', 'compare'].map((v) => (
+      {['network', 'compare', 'boundary'].map((v) => (
         <button
           key={v}
           className={`vbtn mono${v === view ? ' vbtn-on' : ''}`}
@@ -321,6 +322,29 @@ export default function App() {
     from !== null && from > 0 && to !== null && to !== undefined ? ((from - to) / from) * 100 : null
   const vsTimetable = pct(refs.baseline, hero.cvRun)
   const vsUntrained = pct(refs.untrained, hero.cvRun)
+
+  if (view === 'boundary') {
+    return (
+      <div className="app">
+        <div className="topbar">
+          <h1 className="headline display">
+            the rule it learned, not the effects. dots are trains, moving through the
+            policy's decision space.
+          </h1>
+          <ViewSwitch view={view} setView={setView} />
+        </div>
+        <Boundary playing={playing} speed={speed} />
+        <div className="controls">
+          <button className="btn" onClick={() => setPlaying((p) => !p)}>
+            {playing ? 'pause' : 'play'}
+          </button>
+          <button className="btn mono" onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}>
+            {speed}x
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (view === 'compare') {
     return (

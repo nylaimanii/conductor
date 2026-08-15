@@ -23,7 +23,11 @@ export const LINE_IDS = ['L', 'G', '7', '1', '6']
 // monotonic and 003 is genuinely worse than the rung before it, so the curve
 // says why rather than hiding it. A ladder picked to look smooth would be a
 // worse account of what happened.
+// 000 is the honest before-learning anchor. 001 is not untrained: it already
+// holds a meaningful fraction of the time, so using it as the reference
+// understated everything training bought.
 const LADDER = [
+  { tag: '000', frac: 0 },
   { tag: '001', frac: 1 / 12 },
   { tag: '003', frac: 0.25, note: 'at 3% it rediscovered holding and overdid it' },
   { tag: '006', frac: 0.5 },
