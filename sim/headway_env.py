@@ -151,7 +151,11 @@ class HeadwayEnv(ParallelEnv):
         cyc = self.cfg.cycle_length
         c = c % cyc
         half = cyc / 2.0
-        if c <= half:
+        # strict <, not <=. at exactly the halfway point the train is AT the
+        # far end of the line, so it is already turning back. returning +1
+        # there sends it walking off the end of the track: G puts a train
+        # exactly on the last station because 40/6 lands on the boundary.
+        if c < half:
             return c, 1
         return cyc - c, -1
 
@@ -294,6 +298,14 @@ class HeadwayEnv(ParallelEnv):
             return
 
         # MOVING
+        # A train sitting at either end while still pointed outward has to
+        # turn before it moves, or it runs off the track. Belt and braces
+        # alongside the fix in _ring_to_line.
+        if self.dir[i] > 0 and self.pos[i] >= cfg.n_stations - 1:
+            self.dir[i] = -1
+        elif self.dir[i] < 0 and self.pos[i] <= 0:
+            self.dir[i] = 1
+
         prev = self.pos[i]
         nxt = prev + cfg.speed * self.dir[i]
 

@@ -42,14 +42,17 @@ LABELS = {
     "baseline": "fixed timetable",
 }
 
-# L gets the full training progression, the transfer lines get before/after
-TAGS_BY_LINE = {
-    "L": ["baseline", "000", "025", "050", "100"],
-    "G": ["baseline", "000", "100"],
-    "7": ["baseline", "000", "100"],
-    "1": ["baseline", "000", "100"],
-    "6": ["baseline", "000", "100"],
-}
+# Every line gets the full progression.
+#
+# Contract amended by Nyla to allow all five tags on all five lines. The
+# JSON shape is unchanged, this only adds files. The transfer lines need the
+# intermediate checkpoints so the improvement arrives as a ramp rather than
+# one jump between 000 and 100.
+#
+# 025 and 050 on G, 7, 1 and 6 are the SAME L-trained checkpoints run
+# zero-shot. Nothing is retrained per line.
+ALL_TAGS = ["baseline", "000", "025", "050", "100"]
+TAGS_BY_LINE = {ln: list(ALL_TAGS) for ln in LINES}
 
 
 # ---------------------------------------------------------------------

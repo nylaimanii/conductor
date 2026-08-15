@@ -85,6 +85,41 @@ def check_no_line_identity_leak():
     print("no line identity leak: PASS")
 
 
+def check_pos_stays_on_the_track():
+    """
+    Trains must never leave the line. Regression test for a real bug: at the
+    exact ring midpoint a train was handed direction +1 while already sitting
+    on the last station, so it walked off the end (pos 20.5 on a 21 station
+    line). G hit it because 40/6 puts a train exactly on the boundary; the L
+    never did, so only the transfer lines exposed it.
+
+    Covers both the real lines and fleet sizes chosen to land exactly on the
+    turnaround.
+    """
+    from mta_data import all_line_configs
+
+    cases = list(all_line_configs().items())
+    for n_st, n_tr in [(21, 6), (11, 4), (9, 2), (13, 8)]:
+        cases.append((f"synth{n_st}/{n_tr}",
+                      synthetic_line(n_stations=n_st, n_trains=n_tr)))
+
+    for label, cfg in cases:
+        for pol in (0, 1):
+            env = HeadwayEnv(cfg, seed=7)
+            env.reset(seed=7)
+            lo, hi = 1e9, -1e9
+            while env.agents:
+                _, _, _, trunc, _ = env.step({a: pol for a in env.agents})
+                lo, hi = min(lo, env.pos.min()), max(hi, env.pos.max())
+                assert lo >= -1e-9, f"{label}: pos {lo} below station 0"
+                assert hi <= cfg.n_stations - 1 + 1e-9, \
+                    f"{label}: pos {hi} past last station {cfg.n_stations - 1}"
+                if any(trunc.values()):
+                    break
+        print(f"  {label:<12} pos stayed in [0, {cfg.n_stations - 1}]")
+    print("trains stay on the track: PASS")
+
+
 def check_sb3_pipeline():
     cfg = synthetic_line(n_stations=16, n_trains=6)
     env = HeadwayEnv(cfg, seed=0)
@@ -123,6 +158,8 @@ if __name__ == "__main__":
     check_no_line_identity_leak()
     print("-" * 62)
     check_hold_forever_cannot_deadlock()
+    print("-" * 62)
+    check_pos_stays_on_the_track()
     print("-" * 62)
     check_sb3_pipeline()
     print("=" * 62)
