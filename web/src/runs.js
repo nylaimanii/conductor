@@ -10,10 +10,10 @@ export const LINE_IDS = ['L', 'G', '7', '1', '6']
 // split screen, not a point on the training timeline.
 const CHECKPOINTS = {
   L: [0, 25, 50, 100],
-  G: [0, 100],
-  7: [0, 100],
-  1: [0, 100],
-  6: [0, 100],
+  G: [0, 25, 50, 100],
+  7: [0, 25, 50, 100],
+  1: [0, 25, 50, 100],
+  6: [0, 25, 50, 100],
 }
 
 export const tagFor = (n) => String(n).padStart(3, '0')
@@ -22,8 +22,9 @@ export const tagFor = (n) => String(n).padStart(3, '0')
 // along this, not a position in a video.
 export const TOTAL_TIMESTEPS = 20_000_000
 
-// The canonical checkpoint ladder. L carries all four, so it is what the
-// training readout reports; the other lines only have the two ends.
+// The checkpoint ladder every line is cut at. With all four on every line the
+// transfer ramps across the network instead of jumping at the midpoint, which
+// was an artifact of the other four lines only having the two ends.
 const LADDER = [0, 25, 50, 100]
 
 // Timesteps of training represented by a scrubber value, snapped to the

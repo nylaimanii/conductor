@@ -8,13 +8,13 @@
 //
 // Contract points this file must honor:
 //   path            /web/public/runs/{LINE}_{TAG}.json
-//   tags            L gets 000 025 050 100 baseline. G 7 1 6 get 000 100 baseline.
+//   tags            every line gets 000 025 050 100 baseline
 //   pos             float station index, 3.42 = 42% from station 3 to station 4
 //   x, y            canvas coords computed here, web does zero layout math
 //   waiting         one int per station, same order as stations
 //   rounding        pos to 2 decimals, every 2nd tick written
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -135,6 +135,8 @@ const LINES = {
   },
 }
 
+const envNum = (k, d) => (process.env[k] === undefined ? d : Number(process.env[k]))
+
 // ---------------------------------------------------------------------------
 // Run configuration. skill drives how well the policy spaces its trains.
 
@@ -144,15 +146,20 @@ const RUNS = {
   // boarding finishes, which is what lets the fleet bunch.
   baseline: { label: 'baseline', skill: 0.0 },
   '000': { label: 'untrained', skill: 0.0 },
-  '025': { label: 'early training', skill: 0.42 },
-  '050': { label: 'mid training', skill: 0.71 },
+  // Spread so each checkpoint is visibly better than the last. Improvement in
+  // this system is steeply nonlinear: even a barely calibrated policy removes
+  // most of the bunching, so evenly spaced skill values put nearly the whole
+  // gain between the first two checkpoints and leave the rest of the scrubber
+  // looking inert.
+  '025': { label: 'early training', skill: envNum('SKILL_025', 0.14) },
+  '050': { label: 'mid training', skill: envNum('SKILL_050', 0.38) },
   '100': { label: 'trained', skill: 0.96 },
 }
 
-const TAGS_FOR = (line) =>
-  line === 'L' ? ['baseline', '000', '025', '050', '100'] : ['baseline', '000', '100']
-
-const envNum = (k, d) => (process.env[k] === undefined ? d : Number(process.env[k]))
+// Every line is cut at every checkpoint, so the whole network moves together
+// as the scrubber crosses each stage.
+const ALL_TAGS = ['baseline', '000', '025', '050', '100']
+const TAGS_FOR = () => ALL_TAGS
 
 const SIM_TICKS = 400 // every 2nd is written, per the contract
 // Ticks simulated before anything is recorded. Two jobs: platforms start
@@ -408,6 +415,41 @@ function simulate(line, cfg, tag) {
 // ---------------------------------------------------------------------------
 
 mkdirSync(OUT_DIR, { recursive: true })
+
+// Refuse to overwrite sim's real trajectories.
+//
+// This generator exists only to stand in until sim produces the real runs. Once
+// those have landed, running it again silently replaces real output with made
+// up numbers, and the two are indistinguishable at a glance. A run is treated
+// as sim's if its first station name is not the one this file would have
+// written for that line.
+//
+// Set FORCE_OVERWRITE=1 to regenerate anyway.
+if (!process.env.FORCE_OVERWRITE) {
+  const foreign = []
+  for (const [line, cfg] of Object.entries(LINES)) {
+    for (const tag of TAGS_FOR(line)) {
+      const path = `${OUT_DIR}/${line}_${tag}.json`
+      if (!existsSync(path)) continue
+      try {
+        const doc = JSON.parse(readFileSync(path, 'utf8'))
+        if (doc?.stations?.[0]?.name !== cfg.names[0]) foreign.push(`${line}_${tag}`)
+      } catch {
+        // Unreadable is not evidence of anything, leave it alone.
+      }
+    }
+  }
+  if (foreign.length) {
+    console.error(
+      `refusing to run: ${foreign.length} file(s) in ${OUT_DIR} were not written by this ` +
+        `generator and look like real sim output.\n` +
+        `  first few: ${foreign.slice(0, 6).join(', ')}\n` +
+        `  regenerating would replace real trajectories with fake ones.\n` +
+        `  set FORCE_OVERWRITE=1 if that is genuinely what you want.`
+    )
+    process.exit(1)
+  }
+}
 
 let written = 0
 for (const [line, cfg] of Object.entries(LINES)) {
