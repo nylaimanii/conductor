@@ -115,7 +115,15 @@ function worstSpaced(doc) {
 // separately. On a straight the two coincide. At a corner the camera sits
 // behind the train and looks into the turn, which is what riding one looks
 // like.
-const LOOK_AHEAD = 2.2
+const LOOK_AHEAD = 1.4
+// And how far the aim is allowed to depart from the way the camera is facing.
+// The ridden train sits on the camera's own axis, so a lean of this many
+// radians puts it exactly this far off the centre of frame — at twelve degrees
+// against a half frame of twenty six, about halfway to the edge. Unbounded, a
+// look point on the far side of a corner swings the aim past the half frame
+// and the train being ridden leaves the shot altogether, which is what
+// happened here: the L can turn ninety degrees twice inside two blocks.
+const MAX_LEAN = 0.22
 // Seconds-ish constants. The yaw is slow enough that the camera trails the
 // train around a corner and catches up after, rather than snapping to the new
 // segment the instant the train crosses the joint. The look point is quicker,
@@ -375,7 +383,7 @@ export default function Scene3D({ playing }) {
           for (const sys of state.systems) {
             sys.camYaw = null
             sys.follow = null
-            sys.look = null
+            sys.lookYaw = null
           }
         }
 
@@ -441,11 +449,20 @@ export default function Scene3D({ playing }) {
                 // the track under the camera is the track under the train.
                 sys.mount = { x: HERE.x + WAY.x, y: 0.9, z: HERE.z + WAY.z }
                 sys.heading = Math.atan2(hz, hx)
-                // The place on the line to look at. Clamped at a terminal, so
-                // arriving at the end of the line means looking at the end of
-                // the line rather than at somewhere the track doubles back to.
+                // The direction of the track ahead, as an angle rather than a
+                // point, because what has to be bounded is how far the aim
+                // departs from the way the camera faces. Clamped at a terminal,
+                // so arriving at the end of the line means looking at the end
+                // of the line rather than where the track doubles back to.
                 at(sys, s2, tr.pos + LOOK_AHEAD * tr.dir, LEAD)
-                sys.target = { x: LEAD.x + WAY.x, z: LEAD.z + WAY.z }
+                const ax = LEAD.x - HERE.x
+                const az = LEAD.z - HERE.z
+                // Falls back to the heading rather than to nothing. Left
+                // unset, an aim of undefined turns the lean into NaN, and a
+                // camera with a NaN in its matrix draws an empty viewport with
+                // no error anywhere — which is a long way to look for it.
+                if (ax * ax + az * az > 0.04) sys.aim = Math.atan2(az, ax)
+                else if (sys.aim == null) sys.aim = sys.heading
               }
               ti++
             }
@@ -531,11 +548,12 @@ export default function Scene3D({ playing }) {
           if (jump) sys.camYaw = sys.heading
           else sys.camYaw += err * (1 - Math.exp(-dt * YAW_LAG))
 
-          // The look point eases separately, and cuts with the camera.
-          if (!sys.look || jump) sys.look = new THREE.Vector3(sys.target.x, 0, sys.target.z)
-          const lk = 1 - Math.exp(-dt * LOOK_LAG)
-          sys.look.x += (sys.target.x - sys.look.x) * lk
-          sys.look.z += (sys.target.z - sys.look.z) * lk
+          // The aim eases separately and cuts with the camera, then is held
+          // within a bounded lean of it so the ridden train can never be
+          // pushed out of its own shot.
+          if (sys.lookYaw == null || jump) sys.lookYaw = sys.aim
+          else sys.lookYaw += wrapPi(sys.aim - sys.lookYaw) * (1 - Math.exp(-dt * LOOK_LAG))
+          const lean = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, wrapPi(sys.lookYaw - sys.camYaw)))
 
           // Lag. The camera is a body being towed, not a rig bolted to the
           // roof: when the train pulls out of a station it gets away, and when
@@ -583,7 +601,9 @@ export default function Scene3D({ playing }) {
             py + up + bob,
             pz + bz * back + fx * sway
           )
-          cam.lookAt(sys.look.x, py + 1.1, sys.look.z)
+          const lx = Math.cos(sys.camYaw + lean)
+          const lz = Math.sin(sys.camYaw + lean)
+          cam.lookAt(px + lx * 15, py + 1.1, pz + lz * 15)
         }
         cam.aspect = halfW / H
         cam.updateProjectionMatrix()
