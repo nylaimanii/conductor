@@ -54,7 +54,7 @@ export function aimKey(key, x, z) {
 
 export function buildLights(scene) {
   // Very low ambient: the scene is near black and the trains carry the light.
-  scene.add(new THREE.AmbientLight(0x3a444d, 0.3))
+  scene.add(new THREE.AmbientLight(0x4a5661, 0.55))
 
   // Key, from high and to one side, casting the soft shadows onto the plane.
   const key = new THREE.DirectionalLight(0xdfeaf5, 1.9)
@@ -85,7 +85,7 @@ export function buildLights(scene) {
   scene.add(rim)
 
   // A faint sky/ground bounce so the tops of things are not flat.
-  scene.add(new THREE.HemisphereLight(0x3d4c5c, 0x07090b, 0.25))
+  scene.add(new THREE.HemisphereLight(0x4e6070, 0x14171c, 0.45))
 
   return key
 }
@@ -99,11 +99,11 @@ function gridTexture() {
   // All but black. The ground is the thing light does not reach: at a ride
   // along height a lit floor fills half the frame and flattens everything on
   // it, and the trains and rails stop being the brightest objects in the shot.
-  g.fillStyle = '#08090b'
+  g.fillStyle = '#151920'
   g.fillRect(0, 0, S, S)
   // Barely there. Dark grey on near black: enough to read the plane receding,
   // not enough to read as a chart.
-  g.strokeStyle = 'rgba(150,185,215,0.055)'
+  g.strokeStyle = 'rgba(150,185,215,0.10)'
   g.lineWidth = 1
   g.beginPath()
   g.moveTo(0.5, 0)
@@ -134,7 +134,7 @@ export function buildGround(scene) {
     map: gridTexture(),
     // Multiplied down again on top of the near black map, so even the key
     // light's pool on the plane stays below the ballast.
-    color: 0x8f9498,
+    color: 0xb6bcc4,
     roughness: 0.95,
     metalness: 0.0,
   })
@@ -277,7 +277,7 @@ export function buildTrack(scene, stations, project) {
   const RAIL_W = 0.13
 
   const ballastMat = new THREE.MeshStandardMaterial({
-    color: 0x242c33,
+    color: 0x39434c,
     roughness: 1.0,
     metalness: 0.0,
     // The faces are built by hand rather than from a box, so this is here so
@@ -305,7 +305,7 @@ export function buildTrack(scene, stations, project) {
     side: THREE.DoubleSide,
   })
   const tieMat = new THREE.MeshStandardMaterial({
-    color: 0x2e363d,
+    color: 0x434d56,
     roughness: 0.95,
     metalness: 0.0,
   })
@@ -391,14 +391,17 @@ export function buildTrains(scene, count) {
   // cab that reads as bunching whether or not there is any: a train that fills
   // its block is never more than a block from looking joined to the next one.
   // A real train is about a fifth of the distance between two stops on the L.
-  const geo = new RoundedBoxGeometry(2.6, 1.2, 1.7, 5, 0.34)
-  geo.translate(0, 0.9, 0)
+  const geo = new RoundedBoxGeometry(3.2, 1.45, 1.8, 5, 0.34)
+  geo.translate(0, 1.0, 0)
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.trainBody,
-    emissive: COLORS.trainEmissive,
-    emissiveIntensity: 0.35,
+    // Lifted so a train stays the brightest object in frame even where the key
+    // light rakes it badly. The rails carry a floor of their own and this has
+    // to sit above it: the subject cannot be dimmer than the track it is on.
+    emissive: 0x3d4a55,
+    emissiveIntensity: 0.75,
     roughness: 0.35,
-    metalness: 0.25,
+    metalness: 0.2,
   })
   const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, count))
   // Per instance colour: a train that has closed on the one ahead dims and
@@ -429,12 +432,37 @@ export function buildTrains(scene, count) {
 // distance. It is traffic, not a subject. It still takes the fog, so it sits
 // in the same air as everything else.
 export function buildOncoming(scene, count) {
-  const geo = new RoundedBoxGeometry(2.6, 1.2, 1.7, 5, 0.34)
-  geo.translate(0, 0.9, 0)
+  const geo = new RoundedBoxGeometry(3.2, 1.45, 1.8, 5, 0.34)
+  geo.translate(0, 1.0, 0)
   const mat = new THREE.MeshBasicMaterial({ color: 0x1d242a, fog: true })
   const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, count))
   mesh.castShadow = false
   mesh.receiveShadow = false
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  mesh.frustumCulled = false
+  scene.add(mesh)
+  return mesh
+}
+
+// Tail marker lamps, on the back of every train running your way.
+//
+// The train in front is the whole argument on the timetable side and it sits
+// twenty five units up the track, which is a couple of percent of frame height
+// — a dim grey shape against a dim grey tunnel. Real cars carry marker lights
+// and they are exactly the right fix: unlit basic material, so they do not
+// depend on where the key light is, and small and bright enough to be
+// unmistakable at any distance the line can put between two trains. The train
+// being ridden shows its own, which is what the back of a train looks like.
+export function buildLamps(scene, count) {
+  const parts = []
+  for (const side of [-1, 1]) {
+    const g = new THREE.SphereGeometry(0.11, 8, 6).toNonIndexed()
+    // Local -x is the rear: the hull runs along +x before it is yawed.
+    g.translate(-1.62, 0.95, side * 0.6)
+    parts.push(g)
+  }
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff5a3c, fog: true })
+  const mesh = new THREE.InstancedMesh(mergeGeometries(parts), mat, Math.max(1, count))
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
   mesh.frustumCulled = false
   scene.add(mesh)
@@ -507,7 +535,10 @@ const PLAT_H = 0.5
 // leave the platforms standing inside the trains.
 const PLAT_IN = WAY_OFFSET + 1.15
 const PLAT_MID = PLAT_IN + PLAT_W / 2
-const CANOPY_Y = 2.9
+// Above the camera, which rides at 2.95. A canopy hanging at eye level cuts
+// the one sight line the whole shot depends on — down the track to the train
+// in front — every time a station goes by.
+const CANOPY_Y = 3.8
 
 // Stations as places rather than dots: a platform down each side of the two
 // ways, a canopy over each on two columns, and a lit strip under the canopy.
@@ -525,12 +556,12 @@ export function buildStations(scene, stations, project) {
   // station happens to be alongside. Dark concrete, and the strip does the
   // work of saying a station is there.
   const concrete = new THREE.MeshStandardMaterial({
-    color: 0x1c2229,
+    color: 0x2b333c,
     roughness: 0.95,
     metalness: 0.0,
   })
   const canopyMat = new THREE.MeshStandardMaterial({
-    color: 0x0f1317,
+    color: 0x1b2126,
     roughness: 0.9,
     metalness: 0.0,
   })
