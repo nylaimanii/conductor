@@ -288,7 +288,7 @@ export default function Scene3D({ playing, line }) {
   const hostRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(null)
-  const [say, setSay] = useState({ left: '', right: '' })
+  const [say, setSay] = useState({ left: '', right: '', cvL: null, cvR: null })
   const sayRef = useRef(null)
   const playingRef = useRef(playing)
   playingRef.current = playing
@@ -660,14 +660,31 @@ export default function Scene3D({ playing, line }) {
         // Not yet armed until there is a world to describe, so the first
         // sentence lands on the first frame that has one rather than most of a
         // second later.
-        narrate = state.systems.length ? 0.8 : 0
+        // Fast enough that the spacing number reads as a live instrument
+        // rather than a caption. Nothing is recomputed here: cvNow is already
+        // worked out by sampleLine every frame, so this only reads it.
+        narrate = state.systems.length ? 0.15 : 0
         const s = describe(state.systems)
+        const [tt, ln] = state.systems
+        // Rounded to what is displayed, so a change beyond the third decimal
+        // cannot push a re-render that shows the same digits.
+        const show = (sys) => {
+          const v = sys?.last?.cvNow
+          return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(3) : null
+        }
+        const next = { left: s.left, right: s.right, cvL: show(tt), cvR: show(ln) }
         // Compared field by field: describe returns a fresh object every call,
         // so an identity check would push a re-render every time.
         const prev = sayRef.current
-        if (!prev || prev.left !== s.left || prev.right !== s.right) {
-          sayRef.current = s
-          setSay(s)
+        if (
+          !prev ||
+          prev.left !== next.left ||
+          prev.right !== next.right ||
+          prev.cvL !== next.cvL ||
+          prev.cvR !== next.cvR
+        ) {
+          sayRef.current = next
+          setSay(next)
         }
       }
 
@@ -837,6 +854,18 @@ export default function Scene3D({ playing, line }) {
           {/* Each side's line sits over that side, under its title. */}
           {say.left && <div className="panel-say panel-say--left mono">{say.left}</div>}
           {say.right && <div className="panel-say panel-say--right mono">{say.right}</div>}
+
+          {/* The whole argument as a number, one per panel, same place on both
+              so the two can be read against each other at a glance. Lower is
+              more evenly spaced; zero would be perfect. */}
+          <div className="panel-cv panel-cv--left mono">
+            <span className="cv-label">spacing unevenness</span>
+            <span className="cv-value">{say.cvL ?? '—'}</span>
+          </div>
+          <div className="panel-cv panel-cv--right mono">
+            <span className="cv-label">spacing unevenness</span>
+            <span className="cv-value">{say.cvR ?? '—'}</span>
+          </div>
         </>
       )}
       {failed && <div className="scene3d-fail mono">{failed}</div>}

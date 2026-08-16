@@ -245,3 +245,46 @@
   color: rgba(206, 222, 238, 0.72);
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
 }
+
+/* ---- spacing unevenness ------------------------------------------------ */
+/* The number the whole comparison is about, which until now was nowhere on
+   screen. Identical position in both panels so the two can be read against
+   each other without the eye having to hunt.
+
+   Sits below the narration band, which ends at 80px at its worst (two lines),
+   and well above the picker band, which starts 172px up from the bottom. */
+.panel-cv {
+  position: absolute;
+  top: 96px;
+  width: 50%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.panel-cv--left {
+  left: 0;
+}
+
+.panel-cv--right {
+  left: 50%;
+}
+
+.cv-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  color: rgba(170, 192, 212, 0.45);
+}
+
+.cv-value {
+  font-size: 26px;
+  line-height: 1;
+  /* Tabular, so the digits do not shuffle sideways as it updates. */
+  font-variant-numeric: tabular-nums;
+  color: rgba(232, 242, 250, 0.92);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.95);
+}
