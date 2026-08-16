@@ -25,6 +25,7 @@ import { runCv, holdRate, longGapPct } from './headway.js'
 import Compare from './Compare.jsx'
 import Boundary from './Boundary.jsx'
 import Legend from './Legend.jsx'
+import Scene3D from './three/Scene3D.jsx'
 import Inspector from './Inspector.jsx'
 
 function ViewSwitch({ view, setView }) {
@@ -444,6 +445,20 @@ export default function App() {
           <button className="btn mono" onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}>
             {speed}x
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (view === 'network') {
+    return (
+      <div className="stage3d">
+        <Scene3D playing={playing} />
+        <button className="only-control mono" onClick={() => setPlaying((p) => !p)}>
+          {playing ? 'pause' : 'play'}
+        </button>
+        <div className="corner-views">
+          <ViewSwitch view={view} setView={setView} />
         </div>
       </div>
     )
