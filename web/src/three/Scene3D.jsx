@@ -152,36 +152,59 @@ function leaderOffAxis(s2, sys, dirs) {
   return Math.abs(wrapPi(bear - head)) * (180 / Math.PI)
 }
 
-// Which train a side's camera rides: the one with the closest train in front of
-// it, over the whole loop. One rule, run identically on both sides, measured on
-// the thing a viewer can actually see.
+// How far ahead the shot reaches, in station blocks. Four trains need about
+// 126 units on the learned side, which is 20 blocks; this is a little past it.
+const REACH_BLOCKS = 22
+
+// Which train a side's camera rides: the one from which the spacing ahead is
+// most uneven. One rule, run identically on both sides.
 //
-// Over this window it picks a timetable train sitting 25 to 30 units off the
-// back of the one ahead, every frame of the loop, and a learned train sitting
-// at 43 to 44 — a spread of one unit, which is what even spacing looks like.
-// The timetable run has a train at a mean of 27 while its others sit between 53
-// and 86; the learned run's tightest is 44. The asymmetry in the picture is the
-// asymmetry in the data, not in the rule.
+// The old rule rode the train with the closest leader, and it was measuring
+// the wrong thing. Bunching is a property of a set of gaps, not of one gap, so
+// picking on a single distance told you nothing about whether the frame would
+// contain any variation. Worse, it independently picked train 1 on both runs,
+// and train 1 follows nearly the same trajectory in both, so the two panels
+// showed the same train in the same place and looked identical.
 //
-// Chosen once from the window rather than per frame: per frame the tightest
-// train changes every few ticks, which is a cut every half second.
-function closestLeader(doc) {
+// Measured over the window, this picks a timetable train whose three visible
+// gaps span 32 units and a learned train whose span 3. Every learned train is
+// between 2 and 6, which is the policy working: there is no train on that side
+// from which the spacing looks uneven, and that is the entire claim.
+function mostUneven(doc) {
   const { from, to } = windowOf(doc)
   const dirs = directionsFor(doc)
-  // A clear run to the terminal counts as this far, so that a train which
-  // spends the loop with nothing in front is never chosen as the subject.
-  const CLEAR = 20
+  const nTrains = doc.ticks[0].trains.length
   let pick = 0
-  let lowest = Infinity
-  for (let i = 0; i < doc.ticks[0].trains.length; i++) {
-    let acc = 0
+  let best = -1
+  for (let i = 0; i < nTrains; i++) {
+    const spreads = []
     for (let k = from; k <= to; k++) {
-      const d = leaderAhead(doc.ticks[k].trains, dirs[k], i)
-      acc += Number.isFinite(d) ? d : CLEAR
+      const T = doc.ticks[k].trains
+      const D = dirs[k]
+      const dir = D[i]
+      const ahead = [0]
+      for (let j = 0; j < nTrains; j++) {
+        if (j === i || D[j] !== dir) continue
+        const d = (T[j].pos - T[i].pos) * dir
+        if (d > 0 && d <= REACH_BLOCKS) ahead.push(d)
+      }
+      // Two gaps at minimum, or there is no spread to speak of.
+      if (ahead.length < 3) continue
+      ahead.sort((a, b) => a - b)
+      let mn = Infinity
+      let mx = 0
+      for (let x = 0; x + 1 < ahead.length; x++) {
+        const g = ahead[x + 1] - ahead[x]
+        if (g < mn) mn = g
+        if (g > mx) mx = g
+      }
+      spreads.push(mx - mn)
     }
-    const mean = acc / (to - from + 1)
-    if (mean < lowest) {
-      lowest = mean
+    if (!spreads.length) continue
+    spreads.sort((a, b) => a - b)
+    const median = spreads[spreads.length >> 1]
+    if (median > best) {
+      best = median
       pick = i
     }
   }
@@ -322,12 +345,15 @@ export default function Scene3D({ playing, line }) {
     // Close in, because the whole L is only about sixty units end to end. The
     // far end of the line should be dissolving, and the other system, two
     // hundred units away, should not exist.
-    scene.fog = new THREE.Fog(COLORS.bg, 35, 130)
+    // Reaches past the fourth train. At 57 units behind the mount, a train 140
+    // ahead is 197 away, and a 130 unit fog wall erased exactly the thing the
+    // wider shot exists to show.
+    scene.fog = new THREE.Fog(COLORS.bg, 60, 380)
 
     // One camera per side. The comparison is two ride-alongs running in
     // lockstep, so each needs its own view mounted on its own train.
     const cams = [0, 1].map(() => {
-      const c = new THREE.PerspectiveCamera(46, host.clientWidth / 2 / host.clientHeight, 0.3, 1200)
+      const c = new THREE.PerspectiveCamera(60, host.clientWidth / 2 / host.clientHeight, 0.3, 1200)
       return c
     })
 
@@ -341,7 +367,19 @@ export default function Scene3D({ playing, line }) {
     // Almost level, the rails converge to a point near the middle of the frame
     // and the whole lower half is track coming at you, which is the one strong
     // perspective line that carries the motion.
-    const HOME = { yaw: 0, pitch: 0.1, dist: 8.5 }
+    // Back and up until the set of trains is in frame rather than one of them.
+    //
+    // A frame containing a single train contains zero gaps and cannot show
+    // bunching however good the policy is, which is why the two panels looked
+    // the same: they were both a close shot of one train, and one train's own
+    // position carries no spacing information. Four trains means three gaps.
+    // The third train ahead is 115 units away on the timetable side and 126 on
+    // the learned one, so the shot has to reach about 150.
+    //
+    // At 75 back and 0.70 up, the ground in frame runs from 24 units behind
+    // the ridden train out to 207 in front of it, so the train being ridden is
+    // still in shot and the three gaps past it are too.
+    const HOME = { yaw: 0, pitch: 0.7, dist: 75 }
     const orbit = { ...HOME, tYaw: HOME.yaw, tPitch: HOME.pitch, tDist: HOME.dist }
     resetRef.current = () => {
       orbit.tYaw = HOME.yaw
@@ -443,7 +481,7 @@ export default function Scene3D({ playing, line }) {
         // usually looking at different places on the line. That is the point:
         // the argument belongs in the middle of both frames, not up the track
         // in one of them.
-        mountIndex: closestLeader(docs[0]),
+        mountIndex: mostUneven(docs[0]),
         // Camera yaw, damped. Held per system for the same reason.
         camYaw: null,
         trains: buildTrains(group, trainCount),
@@ -473,7 +511,9 @@ export default function Scene3D({ playing, line }) {
       // its shot at all. The L is about a hundred and five units end to end, so
       // the nearest the two ever come is a hundred and forty five, well past
       // where the fog closes at a hundred and thirty.
-      const gap = 250
+      // Must exceed the fog reach plus the length of a line, or the other
+      // system appears in this one's shot now that the fog reaches 380.
+      const gap = 800
       state.systems = [
         buildSystem([left], project, 0, -gap / 2),
         buildSystem([right], project, 0, gap / 2),

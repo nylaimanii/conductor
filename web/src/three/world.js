@@ -434,7 +434,17 @@ export function buildTrains(scene, count) {
 export function buildOncoming(scene, count) {
   const geo = new RoundedBoxGeometry(3.2, 1.45, 1.8, 5, 0.34)
   geo.translate(0, 1.0, 0)
-  const mat = new THREE.MeshBasicMaterial({ color: 0x1d242a, fog: true })
+  // Visible, but plainly the other direction.
+  //
+  // These were near black, which was right from a cab: at rail level a train
+  // on the far track is the same picture as a train ahead on yours, and the
+  // learned side read as bunched every time one passed. Pulled back, that
+  // ambiguity is gone because you can see which pair of rails a train is
+  // standing on, and the dimming does active harm instead: only about three of
+  // the seven trains are going your way at any moment, so the frame that
+  // exists to show a set of trains was showing one. Bright enough to count as
+  // a train, still clearly not the set being followed.
+  const mat = new THREE.MeshBasicMaterial({ color: 0x7d93a6, fog: true })
   const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, count))
   mesh.castShadow = false
   mesh.receiveShadow = false
@@ -743,7 +753,12 @@ export function buildMassing(scene, stations, project) {
           const out = 9 + row * 9 + rand(seed + 1) * 6
           const w = 2.4 + rand(seed + 2) * 4.5
           const dpt = 2.4 + rand(seed + 3) * 4.5
-          const h = 3 + rand(seed + 4) ** 2.2 * 22
+          // Low. These were 3 to 25 units tall, which was fine from a cab at
+          // roof height and hopeless from the pulled back camera: looking down
+          // at the line from 50 units up, a 25 unit block sits directly
+          // between the camera and the track and hides the trains the wider
+          // shot exists to show. They are ground texture now, not skyline.
+          const h = 1.5 + rand(seed + 4) ** 2.2 * 4.5
           const bx = a.x + hx * t + nx * side * out
           const bz = a.z + hz * t + nz * side * out
           // Its own footprint plus the platforms plus a street.
