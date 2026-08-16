@@ -19,9 +19,6 @@ export default function Landing() {
         <p className="lp-sub mono">
           every train runs a fixed schedule. no train knows where the others are.
         </p>
-        <p className="lp-cue mono" aria-hidden="true">
-          scroll
-        </p>
       </section>
 
       <section id="question" className="lp-scene">

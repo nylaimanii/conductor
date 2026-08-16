@@ -48,20 +48,26 @@
   }
 }
 
+/* The four scenes sit close together. A scene is not a screen: a judge should
+   be able to take the whole argument in and reach the button in a couple of
+   scrolls. What keeps them distinct is that the space BETWEEN scenes is much
+   larger than the space between the lines inside one. */
 .lp-scene {
   position: relative;
   z-index: 1;
-  min-height: 100svh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 12svh clamp(22px, 7vw, 132px);
-  gap: clamp(20px, 3.2vh, 40px);
+  padding: clamp(40px, 6vh, 76px) clamp(22px, 7vw, 132px);
+  gap: clamp(14px, 1.8vh, 22px);
 }
 
-/* Scene one gets the top of the page and a little more room above the fold. */
 .lp-scene--problem {
-  padding-top: 9svh;
+  padding-top: clamp(52px, 8vh, 104px);
+}
+
+/* Room under the button, and nothing after it. */
+.lp-scene:last-child {
+  padding-bottom: clamp(56px, 9vh, 112px);
 }
 
 /* Labels. Small, letterspaced and far from the viewer, which is the hardest
@@ -213,21 +219,19 @@
   outline-offset: 3px;
 }
 
-/* A judge needs to know there is more below the first screen. */
-.lp-cue {
-  margin: clamp(24px, 6vh, 90px) 0 0;
-  font-size: 12px;
-  letter-spacing: 0.24em;
-  color: #b0c5d5;
-}
-
 /* Under 400px: same four scenes, one column, nothing cramped and nothing cut. */
 @media (max-width: 460px) {
   .lp-scene {
-    padding: 10svh 20px;
-    min-height: 100svh;
-    justify-content: center;
-    gap: 20px;
+    padding: 38px 20px;
+    gap: 14px;
+  }
+
+  .lp-scene--problem {
+    padding-top: 48px;
+  }
+
+  .lp-scene:last-child {
+    padding-bottom: 56px;
   }
 
   .lp-h1,
@@ -252,16 +256,6 @@
   .lp-go {
     align-self: stretch;
     text-align: center;
-  }
-}
-
-/* Short landscape screens: let the scenes grow past the viewport rather than
-   squeeze the type. */
-@media (max-height: 560px) {
-  .lp-scene {
-    min-height: auto;
-    padding-top: 14vh;
-    padding-bottom: 14vh;
   }
 }
 
