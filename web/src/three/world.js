@@ -185,7 +185,7 @@ export function buildGround(scene) {
 // survey that was a smudge; from a cab it is the shot falling apart. Two ways
 // costs one more pair of rails and fixes it, and gives the ride along the
 // thing that most says moving: something going the other way, close.
-export const WAY_OFFSET = 1.3
+export const WAY_OFFSET = 1.6
 
 // Which way a train sits, given the direction it is heading. Left hand of
 // travel, consistently, so the two ways never cross.
@@ -319,6 +319,32 @@ export function buildTrains(scene, count) {
   return mesh
 }
 
+// The trains on the other way, going the other way.
+//
+// These were the same bright volumes as the ones being followed, and at any
+// distance a train on the second way is indistinguishable from a train ahead
+// on yours — so the learned side, whose whole point is open track in front,
+// read as bunched every time something passed the other way. That attacks the
+// argument directly, and it is an artefact of drawing two ways rather than
+// anything either policy did.
+//
+// Unlit on purpose: a basic material takes no key light, no rim, and no
+// specular, so an oncoming train is a flat dark silhouette that fogs out with
+// distance. It is traffic, not a subject. It still takes the fog, so it sits
+// in the same air as everything else.
+export function buildOncoming(scene, count) {
+  const geo = new RoundedBoxGeometry(2.6, 1.2, 1.7, 5, 0.34)
+  geo.translate(0, 0.9, 0)
+  const mat = new THREE.MeshBasicMaterial({ color: 0x1d242a, fog: true })
+  const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, count))
+  mesh.castShadow = false
+  mesh.receiveShadow = false
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  mesh.frustumCulled = false
+  scene.add(mesh)
+  return mesh
+}
+
 // A cheap contact shadow: a dark disc under each train, so a volume reads as
 // sitting on the plane rather than floating over it. Costs one instanced draw
 // and does not depend on the shadow map resolution.
@@ -380,9 +406,10 @@ function headingAt(pts, i) {
 const PLAT_LEN = 4.6
 const PLAT_W = 2.8
 const PLAT_H = 0.5
-// Inner edge, clear of the ballast and of a train's flank. A train is 1.9
-// across sitting 1.3 off the centreline, so its outer face is at 2.25.
-const PLAT_IN = 2.45
+// Inner edge, clear of the ballast and of a train's flank. Derived from the
+// way spacing rather than written down, so widening the ways cannot quietly
+// leave the platforms standing inside the trains.
+const PLAT_IN = WAY_OFFSET + 1.15
 const PLAT_MID = PLAT_IN + PLAT_W / 2
 const CANOPY_Y = 2.9
 
@@ -537,7 +564,35 @@ export function buildMassing(scene, stations, project) {
     return x - Math.floor(x)
   }
 
+  // Squared distance from a point to a segment, on the plane.
+  const distToSeg = (px, pz, a, b) => {
+    const vx = b.x - a.x
+    const vz = b.z - a.z
+    const wx = px - a.x
+    const wz = pz - a.z
+    const vv = vx * vx + vz * vz
+    const t = vv > 1e-9 ? Math.max(0, Math.min(1, (wx * vx + wz * vz) / vv)) : 0
+    const dx = wx - vx * t
+    const dz = wz - vz * t
+    return Math.hypot(dx, dz)
+  }
+
+  // Clear of every part of the line, not just the segment a block was placed
+  // from. The L doubles back on itself: stations 13 and 16 pass within
+  // eighteen units of each other, well inside the band these are scattered
+  // through, so blocks placed out to the side of one stretch were landing on
+  // top of another. A camera riding that stretch then runs straight through
+  // the inside of a building, which renders as a viewport that has simply gone
+  // black with nothing in the console to say why.
+  const clearOfLine = (x, z, margin) => {
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (distToSeg(x, z, pts[i], pts[i + 1]) < margin) return false
+    }
+    return true
+  }
+
   const boxes = []
+  let dropped = 0
   let seed = 0
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i]
@@ -558,9 +613,16 @@ export function buildMassing(scene, stations, project) {
           const w = 2.4 + rand(seed + 2) * 4.5
           const dpt = 2.4 + rand(seed + 3) * 4.5
           const h = 3 + rand(seed + 4) ** 2.2 * 22
+          const bx = a.x + hx * t + nx * side * out
+          const bz = a.z + hz * t + nz * side * out
+          // Its own footprint plus the platforms plus a street.
+          if (!clearOfLine(bx, bz, 6.5 + Math.max(w, dpt) / 2)) {
+            dropped++
+            continue
+          }
           boxes.push({
-            x: a.x + hx * t + nx * side * out,
-            z: a.z + hz * t + nz * side * out,
+            x: bx,
+            z: bz,
             w,
             d: dpt,
             h,
@@ -569,6 +631,10 @@ export function buildMassing(scene, stations, project) {
         }
       }
     }
+  }
+
+  if (dropped) {
+    console.info(`massing: dropped ${dropped} blocks that fouled the line, kept ${boxes.length}`)
   }
 
   const geo = new THREE.BoxGeometry(1, 1, 1)

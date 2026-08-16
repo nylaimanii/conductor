@@ -11,6 +11,7 @@ import {
   buildGround,
   buildTrack,
   buildTrains,
+  buildOncoming,
   buildContacts,
   buildRiders,
   buildLabel,
@@ -333,6 +334,7 @@ export default function Scene3D({ playing }) {
         // Camera yaw, damped. Held per system for the same reason.
         camYaw: null,
         trains: buildTrains(group, trainCount),
+        oncoming: buildOncoming(group, trainCount),
         contacts: buildContacts(group, trainCount),
         // Standing places, worked out once with the platforms they belong to.
         slots,
@@ -391,10 +393,17 @@ export default function Scene3D({ playing }) {
         // the same day on both sides.
         for (const sys of state.systems) {
           let ti = 0
+          let oi = 0
           let ri = 0
           for (const doc of sys.docs) {
             const s2 = sampleLine(doc, Math.min(head, doc.ticks.length - 1))
             sys.last = s2
+            // Which way is "your way", read before the loop so every train can
+            // be compared against it. It flips when the ridden train turns
+            // round at a terminal, and so does every train's classification —
+            // but that happens on the same frame the camera cuts, so the swap
+            // is hidden inside the cut rather than reading as a flicker.
+            const mountDir = s2.trains[sys.mountIndex]?.dir ?? 1
             for (let tix = 0; tix < s2.trains.length; tix++) {
               const tr = s2.trains[tix]
               const p = posToXY(s2.stations, tr.pos)
@@ -420,6 +429,17 @@ export default function Scene3D({ playing }) {
               dummy.rotation.set(0, -Math.atan2(hz, hx), 0)
               dummy.scale.setScalar(1)
               dummy.updateMatrix()
+
+              if (tr.dir !== mountDir) {
+                // Going the other way, on the other track. Drawn dark and
+                // unlit, and given no contact shadow, because a shadow is a
+                // claim that something is standing on your ground.
+                // The ridden train always travels mountDir by definition, so
+                // this can never skip the mount block below.
+                sys.oncoming.setMatrixAt(oi++, dummy.matrix)
+                continue
+              }
+
               sys.trains.setMatrixAt(ti, dummy.matrix)
 
               dummy.position.set(w.x + WAY.x, 0.045, w.z + WAY.z)
@@ -498,9 +518,11 @@ export default function Scene3D({ playing }) {
             }
           }
           sys.trains.count = ti
+          sys.oncoming.count = oi
           sys.contacts.count = ti
           sys.trains.instanceMatrix.needsUpdate = true
           if (sys.trains.instanceColor) sys.trains.instanceColor.needsUpdate = true
+          sys.oncoming.instanceMatrix.needsUpdate = true
           sys.contacts.instanceMatrix.needsUpdate = true
           sys.riders.instanceMatrix.needsUpdate = true
         }
@@ -604,6 +626,23 @@ export default function Scene3D({ playing }) {
           const lx = Math.cos(sys.camYaw + lean)
           const lz = Math.sin(sys.camYaw + lean)
           cam.lookAt(px + lx * 15, py + 1.1, pz + lz * 15)
+
+          // A camera with a NaN anywhere in it renders a viewport that has
+          // simply gone black, with nothing in the console and no error thrown
+          // anywhere. Worth one comparison a frame to be told instead of
+          // having to go looking.
+          if (!Number.isFinite(cam.position.x + cam.position.y + cam.position.z + lean)) {
+            if (!sys.warned) {
+              sys.warned = true
+              console.error('camera went non-finite', {
+                side: i,
+                camYaw: sys.camYaw,
+                aim: sys.aim,
+                lean,
+                mount: m,
+              })
+            }
+          }
         }
         cam.aspect = halfW / H
         cam.updateProjectionMatrix()
