@@ -6,8 +6,12 @@
    are no borders and no panels anywhere below: whitespace and weight separate
    the four scenes, and each scene owns a screen.
 
-   Contrast is set for a projector in a lit room, not for a dark office. The
-   dimmest thing on the page that anyone has to read is #93A9BC on #0A0C0E. */
+   Contrast is set for a projector in a lit room, not for a dark office, and
+   the room is the binding case. Ambient light lifts a projector's black, which
+   compresses bright-on-dark: text that measures 8:1 here measures about 4:1
+   there. So every color below clears 4.5:1 modelled at the glow's brightest
+   point WITH the lights on, not just against #0A0C0E in the dark. The dimmest
+   is #B0C5D5, which is 11.0:1 on a laptop and 5.3:1 in the room. */
 
 .lp {
   min-height: 100%;
@@ -60,13 +64,14 @@
   padding-top: 9svh;
 }
 
-/* Labels. Small, but never dim enough to disappear off a projector. */
+/* Labels. Small, letterspaced and far from the viewer, which is the hardest
+   case in the room: they carry more luminance than the larger type, not less. */
 .lp-brand,
 .lp-eyebrow {
   margin: 0;
   font-size: clamp(11px, 1.05vw, 13px);
   letter-spacing: 0.24em;
-  color: #93a9bc;
+  color: #b0c5d5;
   text-transform: lowercase;
 }
 
@@ -213,7 +218,7 @@
   margin: clamp(24px, 6vh, 90px) 0 0;
   font-size: 12px;
   letter-spacing: 0.24em;
-  color: #8ea3b5;
+  color: #b0c5d5;
 }
 
 /* Under 400px: same four scenes, one column, nothing cramped and nothing cut. */
