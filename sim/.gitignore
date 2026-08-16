@@ -2,3 +2,5 @@
 *.log
 # beta sweep checkpoints, regenerable and not the shipped policy
 checkpoints_beta/
+checkpoints_skip/
+checkpoints_fleet/

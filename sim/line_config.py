@@ -57,6 +57,13 @@ class LineConfig:
     # so worse spacing and better wait, which sweep_beta.py measures.
     hold_penalty: float = 0.5
 
+    # gamma, the weight on passengers riding in a moving train, charged
+    # every tick they are aboard. 0.0 is the original spec, where the reward
+    # only ever counted platform waiting, so nothing pushed toward shorter
+    # trips. Default stays 0.0 so the shipped 012 policy's environment is
+    # unchanged; the skip-stop experiment raises it.
+    in_vehicle_penalty: float = 0.0
+
     # multiplier on arrival_rates at the peak of the rush.
     peak_multiplier: float = 2.5
 

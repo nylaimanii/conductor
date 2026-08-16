@@ -143,6 +143,12 @@ class HeadwayEnv(ParallelEnv):
         # the mean hides the thing bunching actually does to people: a few
         # riders eating enormous gaps. this is what the tail stats read.
         self.boarded_waits: List[int] = []
+
+        # integral of onboard count over time, so passenger-ticks spent
+        # riding. divided by boardings this gives mean in-vehicle time.
+        # accumulated once per tick and never touched at alighting, which is
+        # the mistake that inflated mean_wait by 1.988x.
+        self.total_invehicle_ticks = 0
         self.n_stranded_events = 0
         self.tick_stranded = 0
 
@@ -480,7 +486,10 @@ class HeadwayEnv(ParallelEnv):
         waiting = sum(len(q) for q in self.queues)
         held_onboard = float(self.onboard[self.held].sum()) if self.held.any() else 0.0
         beta = self.cfg.hold_penalty
-        raw = -(waiting) - beta * held_onboard - 2.0 * self.tick_stranded
+        gamma = self.cfg.in_vehicle_penalty
+        riding = float(self.onboard.sum()) if gamma else 0.0
+        raw = (-(waiting) - beta * held_onboard - gamma * riding
+               - 2.0 * self.tick_stranded)
         scale = 1.0 / (self.cfg.n_stations * self.cfg.capacity)
         return float(raw * scale)
 
@@ -515,6 +524,7 @@ class HeadwayEnv(ParallelEnv):
             for entry in q:
                 entry[1] += 1
         self.total_wait_ticks += sum(len(q) for q in self.queues)
+        self.total_invehicle_ticks += int(self.onboard.sum())
 
         self.t += 1
         r = self._reward()
@@ -596,6 +606,29 @@ class HeadwayEnv(ParallelEnv):
             "n": int(len(w)),
             "over_10min_pct": float(100.0 * np.mean(w > over)),
         }
+
+    def mean_invehicle(self) -> float:
+        """Mean ticks spent riding, per passenger who actually boarded."""
+        if self.n_boarded == 0:
+            return 0.0
+        return self.total_invehicle_ticks / self.n_boarded
+
+    def mean_journey(self) -> float:
+        """
+        Platform wait plus in-vehicle time, for passengers who completed a
+        trip. Read this next to unserved_pct: a policy that strands people
+        removes their journey from this average entirely, so the number
+        flatters itself exactly when service is getting worse.
+        """
+        if self.n_boarded == 0:
+            return 0.0
+        return float(np.mean(self.boarded_waits)) + self.mean_invehicle()
+
+    def unserved_pct(self) -> float:
+        """Share of arrivals still standing on a platform at the end."""
+        if self.n_arrived == 0:
+            return 0.0
+        return 100.0 * (1.0 - self.n_boarded / self.n_arrived)
 
     def mean_wait(self) -> float:
         """

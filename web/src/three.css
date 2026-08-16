@@ -1,0 +1,161 @@
+/* The 3D stage carries the whole screen. Nothing else is on it. */
+.stage3d {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #07080a;
+}
+
+.scene3d,
+.scene3d-host {
+  position: absolute;
+  inset: 0;
+}
+
+.scene3d-host canvas {
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.scene3d-host canvas:active {
+  cursor: grabbing;
+}
+
+/* The only control. */
+.only-control {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(170, 195, 215, 0.22);
+  background: rgba(14, 18, 22, 0.55);
+  color: #c3d4e2;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.only-control:hover {
+  border-color: rgba(170, 195, 215, 0.45);
+}
+
+.scene3d-reset {
+  position: absolute;
+  right: 22px;
+  bottom: 26px;
+  z-index: 3;
+  font-size: 10px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(170, 195, 215, 0.18);
+  background: rgba(14, 18, 22, 0.5);
+  color: #8ea3b5;
+  cursor: pointer;
+}
+
+.corner-views {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  z-index: 3;
+  opacity: 0.5;
+}
+
+.corner-views:hover {
+  opacity: 1;
+}
+
+.scene3d-fail {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ff8f7a;
+  font-size: 12px;
+}
+
+.scene3d-ready {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.only-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+}
+
+.only-controls .only-control {
+  position: static;
+  transform: none;
+}
+
+/* Which side is which. Screen space, one per viewport: the two cameras are
+   inside two separate copies of the line, so there is nowhere in the world
+   that can carry these. */
+.scene3d-caption {
+  position: absolute;
+  top: 26px;
+  width: 50%;
+  z-index: 3;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(196, 214, 230, 0.58);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+}
+
+.scene3d-caption--left {
+  left: 0;
+}
+
+.scene3d-caption--right {
+  left: 50%;
+}
+
+/* A hairline, so two shots of the same line read as a comparison rather than
+   as one wide shot with a seam in it. */
+.scene3d-split {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    rgba(150, 180, 205, 0) 0%,
+    rgba(150, 180, 205, 0.16) 18%,
+    rgba(150, 180, 205, 0.16) 82%,
+    rgba(150, 180, 205, 0) 100%
+  );
+  pointer-events: none;
+}
+
+/* The only text in the product. One line, describing this moment. */
+.scene3d-say {
+  position: absolute;
+  left: 50%;
+  bottom: 68px;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: rgba(200, 218, 232, 0.72);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+  white-space: nowrap;
+}
