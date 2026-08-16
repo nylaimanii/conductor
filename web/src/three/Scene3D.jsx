@@ -245,41 +245,51 @@ const CLOSE_BLOCKS = 5.2
 // read the circuit ratio, which is a different train from the one on screen
 // about a third of the time, so the line and the image could disagree.
 //
-// Every sentence names its side. "This train" was ambiguous across two panels.
+// One sentence per side, each returned separately so it can be drawn over the
+// panel it is about. It used to be a single line on the centre seam carrying
+// "left:" and "right:" prefixes, which put the words for both panels in the one
+// place that belongs to neither, on top of the picker. Position says which side
+// it means now, so the prefixes are gone.
 function describe(systems) {
-  if (!systems.length) return ''
+  const none = { left: '', right: '' }
+  if (!systems.length) return none
   const [timetable, learned] = systems
   const gapL = timetable?.leaderGap
   const gapR = learned?.leaderGap
-  if (typeof gapL !== 'number' || typeof gapR !== 'number') return ''
+  if (typeof gapL !== 'number' || typeof gapR !== 'number') return none
 
   // In shot as well as close: a train round a bend is not on screen.
   const closeL = gapL < CLOSE_BLOCKS && (timetable?.leaderOff ?? 180) < 22
   const clearR = gapR >= CLOSE_BLOCKS * 1.5
-
-  if (timetable?.last?.trains[timetable.mountIndex]?.holding) {
-    return 'left: the timetable train is stopped, and the one behind is closing.'
-  }
-  if (learned?.last?.trains[learned.mountIndex]?.holding) {
-    return 'right: the learned train is holding back to keep its gap even.'
-  }
-  if (closeL && clearR) {
-    return 'left: riding the back of the train in front. right: the same moment, open track.'
-  }
-  if (closeL) return 'left: this train has closed right up on the one ahead of it.'
-  if (clearR) return 'right: the train in front is a full even gap away, and stays there.'
-
   const deepest = Math.max(0, ...(timetable?.last?.waiting || [0]))
-  if (deepest > 10) return 'left: the platform ahead has been waiting a long time.'
-  return 'both sides are running the same day, with the same riders.'
+
+  // The timetable side is a clock and reasons about nothing, so its line only
+  // ever reports what the schedule produced.
+  let left = 'departure set in advance. running to the clock.'
+  if (timetable?.last?.trains[timetable.mountIndex]?.holding) {
+    left = 'stopped, and the one behind is closing.'
+  } else if (closeL) {
+    left = 'closed right up on the one ahead of it.'
+  } else if (deepest > 10) {
+    left = 'the platform ahead has been waiting a long time.'
+  }
+
+  let right = 'spacing is holding.'
+  if (learned?.last?.trains[learned.mountIndex]?.holding) {
+    right = 'holding back to keep its gap even.'
+  } else if (clearR) {
+    right = 'the train in front is a full even gap away, and stays there.'
+  }
+
+  return { left, right }
 }
 
 export default function Scene3D({ playing, line }) {
   const hostRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(null)
-  const [say, setSay] = useState('')
-  const sayRef = useRef('')
+  const [say, setSay] = useState({ left: '', right: '' })
+  const sayRef = useRef(null)
   const playingRef = useRef(playing)
   playingRef.current = playing
   const resetRef = useRef(() => {})
@@ -652,7 +662,10 @@ export default function Scene3D({ playing, line }) {
         // second later.
         narrate = state.systems.length ? 0.8 : 0
         const s = describe(state.systems)
-        if (s !== sayRef.current) {
+        // Compared field by field: describe returns a fresh object every call,
+        // so an identity check would push a re-render every time.
+        const prev = sayRef.current
+        if (!prev || prev.left !== s.left || prev.right !== s.right) {
           sayRef.current = s
           setSay(s)
         }
@@ -821,10 +834,12 @@ export default function Scene3D({ playing, line }) {
           <div className="scene3d-split" />
           <div className="scene3d-caption scene3d-caption--left mono">today’s timetable</div>
           <div className="scene3d-caption scene3d-caption--right mono">after learning</div>
+          {/* Each side's line sits over that side, under its title. */}
+          {say.left && <div className="panel-say panel-say--left mono">{say.left}</div>}
+          {say.right && <div className="panel-say panel-say--right mono">{say.right}</div>}
         </>
       )}
       {failed && <div className="scene3d-fail mono">{failed}</div>}
-      {say && <div className="scene3d-say mono">{say}</div>}
       <button className="scene3d-reset mono" onClick={() => resetRef.current()}>
         reset view
       </button>
