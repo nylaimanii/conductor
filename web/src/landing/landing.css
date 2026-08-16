@@ -1,0 +1,271 @@
+/* The landing page.
+   Same ground as the 3D product (#0A0C0E), same two typefaces, same rule that
+   Baloo 2 is display only and every number is JetBrains Mono.
+
+   Everything is scoped under .lp so none of it can reach the 3D route. There
+   are no borders and no panels anywhere below: whitespace and weight separate
+   the four scenes, and each scene owns a screen.
+
+   Contrast is set for a projector in a lit room, not for a dark office. The
+   dimmest thing on the page that anyone has to read is #93A9BC on #0A0C0E. */
+
+.lp {
+  min-height: 100%;
+  background: #0a0c0e;
+  color: #dfe7ee;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* The one moving thing on the page. A single soft glow behind the type that
+   drifts slowly enough that you notice it only if you stop and look. No type
+   moves, fades or arrives on scroll. */
+.lp::before {
+  content: '';
+  position: fixed;
+  inset: -25vh -25vw;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    46vw 46vw at 50% 42%,
+    rgba(120, 190, 250, 0.09) 0%,
+    rgba(120, 190, 250, 0.035) 42%,
+    rgba(10, 12, 14, 0) 72%
+  );
+  animation: lp-drift 74s ease-in-out infinite alternate;
+}
+
+@keyframes lp-drift {
+  from {
+    transform: translate3d(-4vw, -2vh, 0);
+  }
+  to {
+    transform: translate3d(4vw, 3vh, 0);
+  }
+}
+
+.lp-scene {
+  position: relative;
+  z-index: 1;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12svh clamp(22px, 7vw, 132px);
+  gap: clamp(20px, 3.2vh, 40px);
+}
+
+/* Scene one gets the top of the page and a little more room above the fold. */
+.lp-scene--problem {
+  padding-top: 9svh;
+}
+
+/* Labels. Small, but never dim enough to disappear off a projector. */
+.lp-brand,
+.lp-eyebrow {
+  margin: 0;
+  font-size: clamp(11px, 1.05vw, 13px);
+  letter-spacing: 0.24em;
+  color: #93a9bc;
+  text-transform: lowercase;
+}
+
+.lp-brand {
+  letter-spacing: 0.34em;
+  color: #b8ccdc;
+  text-transform: none;
+}
+
+/* Display type. Large only, as the rule requires: nothing here is body size. */
+.lp-h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 5.2vw, 4.6rem);
+  line-height: 1.07;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f6fafd;
+  max-width: 26ch;
+}
+
+/* Each sentence is its own block and balances its own lines, so the second
+   never runs wider than the first and leaves a one-word tail. */
+.lp-h1 span {
+  display: block;
+  text-wrap: balance;
+}
+
+.lp-h1 span + span {
+  margin-top: 0.14em;
+}
+
+.lp-h2 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4.4vw, 3.7rem);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #f6fafd;
+  max-width: 22ch;
+  text-wrap: balance;
+}
+
+.lp-h2--rule {
+  max-width: 26ch;
+  font-size: clamp(1.7rem, 3.7vw, 3.1rem);
+  line-height: 1.14;
+}
+
+/* Sub-lines. Mono, matching the voice of the readouts inside the product. */
+.lp-sub {
+  margin: 0;
+  font-size: clamp(0.95rem, 1.45vw, 1.28rem);
+  line-height: 1.55;
+  color: #a7bccd;
+  max-width: 46ch;
+}
+
+/* Scene three. The first numbers on the page. */
+.lp-stats {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(26px, 4.4vh, 52px);
+}
+
+.lp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-stat-line {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.4vw, 3rem);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #f6fafd;
+  max-width: 34ch;
+  text-wrap: balance;
+}
+
+.lp-num {
+  font-weight: 700;
+  font-size: 0.94em;
+  color: #eaf6ff;
+  text-shadow: 0 0 34px rgba(130, 200, 255, 0.45);
+}
+
+/* The honest line. Normal size, full brightness, standing on its own: it is
+   not a caveat tucked under a number, it is part of the result. */
+.lp-honest {
+  margin: clamp(6px, 2.4vh, 30px) 0 0;
+  font-size: clamp(1rem, 1.55vw, 1.35rem);
+  line-height: 1.55;
+  color: #dbe8f3;
+  max-width: 44ch;
+}
+
+.lp-zeroshot {
+  margin: 0;
+  font-size: clamp(0.95rem, 1.45vw, 1.28rem);
+  line-height: 1.55;
+  color: #a7bccd;
+  max-width: 44ch;
+}
+
+/* Scene four. */
+.lp-credit {
+  margin: 0;
+  font-size: clamp(1rem, 1.55vw, 1.35rem);
+  line-height: 1.55;
+  color: #dbe8f3;
+  max-width: 48ch;
+}
+
+.lp-go {
+  align-self: flex-start;
+  margin-top: clamp(10px, 2.2vh, 28px);
+  padding: 18px 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(150, 215, 255, 0.55);
+  background: rgba(150, 215, 255, 0.12);
+  color: #eaf6ff;
+  font-size: clamp(1rem, 1.4vw, 1.3rem);
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  box-shadow: 0 0 30px rgba(120, 200, 255, 0.14);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.lp-go:hover,
+.lp-go:focus-visible {
+  background: rgba(150, 215, 255, 0.22);
+  border-color: rgba(180, 230, 255, 0.85);
+}
+
+.lp-go:focus-visible {
+  outline: 2px solid rgba(180, 230, 255, 0.9);
+  outline-offset: 3px;
+}
+
+/* A judge needs to know there is more below the first screen. */
+.lp-cue {
+  margin: clamp(24px, 6vh, 90px) 0 0;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: #8ea3b5;
+}
+
+/* Under 400px: same four scenes, one column, nothing cramped and nothing cut. */
+@media (max-width: 460px) {
+  .lp-scene {
+    padding: 10svh 20px;
+    min-height: 100svh;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .lp-h1,
+  .lp-h2,
+  .lp-stat-line,
+  .lp-sub,
+  .lp-honest,
+  .lp-zeroshot,
+  .lp-credit {
+    max-width: none;
+  }
+
+  .lp-h1 {
+    font-size: 2rem;
+    line-height: 1.1;
+  }
+
+  .lp-h1 br {
+    display: none;
+  }
+
+  .lp-go {
+    align-self: stretch;
+    text-align: center;
+  }
+}
+
+/* Short landscape screens: let the scenes grow past the viewport rather than
+   squeeze the type. */
+@media (max-height: 560px) {
+  .lp-scene {
+    min-height: auto;
+    padding-top: 14vh;
+    padding-bottom: 14vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp::before {
+    animation: none;
+  }
+
+  .lp-go {
+    transition: none;
+  }
+}
