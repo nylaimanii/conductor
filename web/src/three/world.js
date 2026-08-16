@@ -167,17 +167,122 @@ export function wayOffset(hx, hz, out) {
   return out.set(-hz * WAY_OFFSET, 0, hx * WAY_OFFSET)
 }
 
+// Offset a polyline in the XZ plane by a signed distance, mitering at every
+// joint. This is the whole fix for the corners.
+//
+// Laid as one box per segment, a double track cannot turn: each segment puts
+// its rails perpendicular to its own direction, so where two segments meet at
+// ninety degrees the four rails of one cross the four of the other and a
+// corner reads as an X of bright metal lying on the ground. Extending the
+// boxes to close the gaps only makes the overlap bigger.
+//
+// Offsetting the centreline instead gives every rail one continuous edge from
+// terminal to terminal. At a joint the offset point is where the two offset
+// lines actually intersect: along the bisector, at distance d / cos(half the
+// turn), which is what a mitre is. A ninety degree corner puts it 1.41 times
+// the offset out, and the outer rail sweeps round the outside of the inner one
+// the way a real permanent way does.
+function offsetPolyline(pts, dist) {
+  const n = pts.length
+  const out = []
+  const leftNormal = (a, b) => {
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const len = Math.hypot(dx, dz) || 1
+    return { x: -dz / len, z: dx / len }
+  }
+  for (let i = 0; i < n; i++) {
+    const cur = pts[i]
+    // At the ends there is only one segment to take a normal from.
+    const n0 = i > 0 ? leftNormal(pts[i - 1], cur) : leftNormal(cur, pts[i + 1])
+    const n1 = i < n - 1 ? leftNormal(cur, pts[i + 1]) : leftNormal(pts[i - 1], cur)
+    let mx = n0.x + n1.x
+    let mz = n0.z + n1.z
+    const ml = Math.hypot(mx, mz)
+    if (ml < 1e-6) {
+      // A true hairpin, where the mitre runs to infinity. The L has nothing
+      // sharper than a right angle, so this is only here so it cannot explode.
+      out.push({ x: cur.x + n1.x * dist, z: cur.z + n1.z * dist })
+      continue
+    }
+    mx /= ml
+    mz /= ml
+    // cos of half the turn. Clamped so a very sharp corner is blunted rather
+    // than thrown off to the horizon.
+    const cos = Math.max(0.35, mx * n1.x + mz * n1.z)
+    out.push({ x: cur.x + (mx * dist) / cos, z: cur.z + (mz * dist) / cos })
+  }
+  return out
+}
+
+// A flat beam running between two already mitred edge polylines: top face,
+// both flanks, and caps at the ends. Non indexed with explicit normals, so
+// every face is flat shaded and the top of a rail keeps a crisp edge instead
+// of being smoothed into the side of it.
+function beam(inner, outer, y0, y1) {
+  const pos = []
+  const nor = []
+  const tri = (a, b, c, nx, ny, nz) => {
+    pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2])
+    for (let k = 0; k < 3; k++) nor.push(nx, ny, nz)
+  }
+  const quad = (a, b, c, d, nx, ny, nz) => {
+    tri(a, b, c, nx, ny, nz)
+    tri(a, c, d, nx, ny, nz)
+  }
+
+  for (let i = 0; i < inner.length - 1; i++) {
+    const a0 = inner[i]
+    const a1 = inner[i + 1]
+    const b0 = outer[i]
+    const b1 = outer[i + 1]
+    // Outward normal of this length, from the inner edge to the outer one.
+    const ox = b0.x - a0.x
+    const oz = b0.z - a0.z
+    const ol = Math.hypot(ox, oz) || 1
+    const wx = ox / ol
+    const wz = oz / ol
+
+    quad([a0.x, y1, a0.z], [b0.x, y1, b0.z], [b1.x, y1, b1.z], [a1.x, y1, a1.z], 0, 1, 0)
+    quad([b0.x, y0, b0.z], [b1.x, y0, b1.z], [b1.x, y1, b1.z], [b0.x, y1, b0.z], wx, 0, wz)
+    quad([a0.x, y0, a0.z], [a0.x, y1, a0.z], [a1.x, y1, a1.z], [a1.x, y0, a1.z], -wx, 0, -wz)
+  }
+
+  const cap = (a, b, sx, sz) => {
+    quad([a.x, y0, a.z], [a.x, y1, a.z], [b.x, y1, b.z], [b.x, y0, b.z], sx, 0, sz)
+  }
+  const first = { a: inner[0], b: outer[0] }
+  const last = { a: inner[inner.length - 1], b: outer[outer.length - 1] }
+  const d0x = inner[1].x - inner[0].x
+  const d0z = inner[1].z - inner[0].z
+  const d0l = Math.hypot(d0x, d0z) || 1
+  cap(first.a, first.b, -d0x / d0l, -d0z / d0l)
+  const dnx = last.a.x - inner[inner.length - 2].x
+  const dnz = last.a.z - inner[inner.length - 2].z
+  const dnl = Math.hypot(dnx, dnz) || 1
+  cap(last.a, last.b, dnx / dnl, dnz / dnl)
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  return geo
+}
+
 export function buildTrack(scene, stations, project) {
   const group = new THREE.Group()
 
   const GAUGE = 1.05
   const TIE_EVERY = 1.5
   const BED = WAY_OFFSET * 2 + GAUGE + 0.9
+  const RAIL_W = 0.13
 
   const ballastMat = new THREE.MeshStandardMaterial({
     color: 0x242c33,
     roughness: 1.0,
     metalness: 0.0,
+    // The faces are built by hand rather than from a box, so this is here so
+    // that a winding mistake can never silently make a rail invisible.
+    side: THREE.DoubleSide,
   })
   // Metal, but not fully: with no environment to reflect, metalness near one
   // renders as black except where a highlight happens to land, and against a
@@ -197,6 +302,7 @@ export function buildTrack(scene, stations, project) {
     metalness: 0.35,
     emissive: 0x33424f,
     emissiveIntensity: 0.6,
+    side: THREE.DoubleSide,
   })
   const tieMat = new THREE.MeshStandardMaterial({
     color: 0x2e363d,
@@ -204,61 +310,67 @@ export function buildTrack(scene, stations, project) {
     metalness: 0.0,
   })
 
-  // Count ties first so they can share one instanced draw.
-  const segs = []
-  let tieTotal = 0
-  for (let i = 0; i < stations.length - 1; i++) {
-    const a = project(stations[i].x, stations[i].y)
-    const b = project(stations[i + 1].x, stations[i + 1].y)
-    const len = a.distanceTo(b)
-    if (len < 1e-6) continue
-    const n = Math.max(1, Math.floor(len / TIE_EVERY))
-    segs.push({ a, b, len, n })
-    tieTotal += n
+  // The centreline, with any repeated point dropped: a zero length segment has
+  // no direction, and one of those poisons every mitre that touches it.
+  const pts = []
+  for (const s of stations) {
+    const p = project(s.x, s.y)
+    const last = pts[pts.length - 1]
+    if (!last || Math.hypot(p.x - last.x, p.z - last.z) > 1e-6) pts.push({ x: p.x, z: p.z })
+  }
+  if (pts.length < 2) return group
+
+  // One continuous ballast bed, and four continuous rails: two ways of two.
+  // Five meshes for the whole line where there used to be five per block.
+  const bed = new THREE.Mesh(
+    beam(offsetPolyline(pts, -BED / 2), offsetPolyline(pts, BED / 2), 0.02, 0.12),
+    ballastMat
+  )
+  bed.receiveShadow = true
+  group.add(bed)
+
+  for (const way of [-1, 1]) {
+    for (const side of [-1, 1]) {
+      const c = way * WAY_OFFSET + side * (GAUGE / 2)
+      const rail = new THREE.Mesh(
+        beam(offsetPolyline(pts, c - RAIL_W / 2), offsetPolyline(pts, c + RAIL_W / 2), 0.19, 0.3),
+        railMat
+      )
+      rail.castShadow = false
+      rail.receiveShadow = true
+      group.add(rail)
+    }
   }
 
+  // Ties, walked by arc length along the whole centreline rather than restarted
+  // at every station, so the spacing does not stutter at each joint.
+  const segLen = []
+  let total = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].z - pts[i].z)
+    segLen.push(l)
+    total += l
+  }
+  const tieCount = Math.max(1, Math.floor(total / TIE_EVERY))
   const tieGeo = new THREE.BoxGeometry(0.34, 0.1, BED - 0.5)
-  const ties = new THREE.InstancedMesh(tieGeo, tieMat, Math.max(1, tieTotal))
+  const ties = new THREE.InstancedMesh(tieGeo, tieMat, tieCount)
   ties.receiveShadow = true
+
   const dummy = new THREE.Object3D()
-  let ti = 0
-
-  for (const seg of segs) {
-    const { a, b, len, n } = seg
-    const yaw = -Math.atan2(b.z - a.z, b.x - a.x)
-    const mid = a.clone().add(b).multiplyScalar(0.5)
-
-    // Ballast: a low wide bed the track sits on.
-    const bal = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.1, BED), ballastMat)
-    bal.position.set(mid.x, 0.07, mid.z)
-    bal.rotation.y = yaw
-    bal.receiveShadow = true
-    group.add(bal)
-
-    // Four rails, two ways, raised above the ties, metallic so they pick up a
-    // highlight and read as the brightest thing on the plane after the trains.
-    for (const way of [-1, 1]) {
-      for (const side of [-1, 1]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 0.6, 0.11, 0.13), railMat)
-        const off = way * WAY_OFFSET + side * (GAUGE / 2)
-        rail.position.set(mid.x + Math.sin(yaw) * off, 0.245, mid.z + Math.cos(yaw) * off)
-        rail.rotation.y = yaw
-        rail.castShadow = false
-        rail.receiveShadow = true
-        group.add(rail)
-      }
-    }
-
-    for (let k = 0; k < n; k++) {
-      const t = (k + 0.5) / n
-      dummy.position.set(a.x + (b.x - a.x) * t, 0.185, a.z + (b.z - a.z) * t)
-      dummy.rotation.set(0, yaw, 0)
-      dummy.scale.setScalar(1)
-      dummy.updateMatrix()
-      ties.setMatrixAt(ti++, dummy.matrix)
-    }
+  let seg = 0
+  let acc = 0
+  for (let k = 0; k < tieCount; k++) {
+    const s = (k + 0.5) * TIE_EVERY
+    while (seg < segLen.length - 1 && acc + segLen[seg] < s) acc += segLen[seg++]
+    const t = Math.min(1, (s - acc) / (segLen[seg] || 1))
+    const a = pts[seg]
+    const b = pts[seg + 1]
+    dummy.position.set(a.x + (b.x - a.x) * t, 0.185, a.z + (b.z - a.z) * t)
+    dummy.rotation.set(0, -Math.atan2(b.z - a.z, b.x - a.x), 0)
+    dummy.scale.setScalar(1)
+    dummy.updateMatrix()
+    ties.setMatrixAt(k, dummy.matrix)
   }
-  ties.count = ti
   ties.instanceMatrix.needsUpdate = true
   group.add(ties)
 
