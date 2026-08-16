@@ -1,29 +1,22 @@
 import { useState } from 'react'
 import Scene3D from './three/Scene3D.jsx'
 
-// The product is the 3D scene.
+// The product is the comparison.
 //
-// The old 2D views, the view switcher, the scrubber, the ribbons, the metric
-// panels and every readout are gone. Two simulations standing side by side in
-// one world is the whole argument: one bunches, the other does not, and that is
-// visible without a single number on screen.
+// One line, two policies, running in lockstep in a single 3D world: the fixed
+// timetable and the learned one. Everything else was scaffolding and is gone.
+// Two controls, and no numbers anywhere. The argument is that one side bunches
+// and the other does not, which you can see.
 
 export default function App() {
   const [playing, setPlaying] = useState(true)
-  const [mode, setMode] = useState('single')
 
   return (
     <div className="stage3d">
-      <Scene3D playing={playing} mode={mode} />
+      <Scene3D playing={playing} />
       <div className="only-controls">
         <button className="only-control mono" onClick={() => setPlaying((p) => !p)}>
           {playing ? 'pause' : 'play'}
-        </button>
-        <button
-          className="only-control mono"
-          onClick={() => setMode((m) => (m === 'single' ? 'compare' : 'single'))}
-        >
-          {mode === 'single' ? 'compare' : 'network'}
         </button>
       </div>
     </div>

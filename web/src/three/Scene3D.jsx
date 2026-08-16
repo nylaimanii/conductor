@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { LINE_IDS, loadRun, peekRun, FINAL_TAG } from '../runs.js'
+import { loadRun, peekRun, FINAL_TAG } from '../runs.js'
 import { sampleLine } from '../sample.js'
 import { posToXY, boundsOf } from '../geometry.js'
 import {
@@ -28,15 +28,15 @@ const TICKS_PER_SEC = 12
 // Riders are deliberately sparse. A platform shows at most this many, with no
 // count anywhere. The crowd is a texture, not a readout.
 const RIDERS_PER_STATION = 4
+// The line the policy was trained on, and the one the comparison runs.
+const COMPARE_LINE = 'L'
 
-export default function Scene3D({ playing, mode = 'single' }) {
+export default function Scene3D({ playing }) {
   const hostRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(null)
   const playingRef = useRef(playing)
   playingRef.current = playing
-  const modeRef = useRef(mode)
-  modeRef.current = mode
   const resetRef = useRef(() => {})
 
   useEffect(() => {
@@ -101,9 +101,10 @@ export default function Scene3D({ playing, mode = 'single' }) {
 
     // A system is one running simulation: its own tracks, trains and riders,
     // offset along x so two can stand side by side in the same world.
-    const buildSystem = (docs, project, offsetX, caption) => {
+    const buildSystem = (docs, project, offsetX, offsetZ, caption) => {
       const group = new THREE.Group()
       group.position.x = offsetX
+      group.position.z = offsetZ
       scene.add(group)
 
       let trainCount = 0
@@ -134,7 +135,7 @@ export default function Scene3D({ playing, mode = 'single' }) {
         const box = new THREE.Box3()
         for (const d of docs) for (const st of d.stations) box.expandByPoint(project(st.x, st.y))
         const c = box.getCenter(new THREE.Vector3())
-        buildCaption(group, caption, new THREE.Vector3(c.x, 0, box.min.z - 6))
+        buildCaption(group, caption, new THREE.Vector3(c.x, 0, box.min.z - 5))
       }
       return sys
     }
@@ -145,38 +146,60 @@ export default function Scene3D({ playing, mode = 'single' }) {
         for (const d of sys.docs) {
           for (const st of d.stations) {
             const p = sys.project(st.x, st.y)
-            box.expandByPoint(new THREE.Vector3(p.x + sys.group.position.x, 0, p.z))
+            box.expandByPoint(
+              new THREE.Vector3(p.x + sys.group.position.x, 0, p.z + sys.group.position.z)
+            )
           }
         }
       }
-      const size = box.getSize(new THREE.Vector3())
-      const centre = box.getCenter(new THREE.Vector3())
-      const span = Math.max(size.x, size.z)
+      const sphere = box.getBoundingSphere(new THREE.Sphere())
+      const centre = sphere.center.clone()
+      centre.y = 0
+
+      // Fit the bounding sphere, not the box. The line runs diagonally, so a
+      // box fit depends on which way the scene happens to be oriented and
+      // pushed half of it off screen. A sphere does not care.
+      const vFov = (camera.fov * Math.PI) / 180
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect)
+      // Deliberately inside a true sphere fit. Fitting the sphere exactly
+      // leaves the scene small in frame, because the sphere of two diagonal
+      // lines is much larger than what they actually occupy on screen. This
+      // crops the empty corners and gets the camera close.
+      const dist = (sphere.radius / Math.sin(Math.min(vFov, hFov) / 2)) * 0.72
+      const elevation = 0.66
+
       controls.target.copy(centre)
-      camera.position.set(centre.x + span * 0.10, span * 0.30, centre.z + span * 0.46)
+      camera.position.set(
+        centre.x,
+        Math.sin(elevation) * dist,
+        centre.z + Math.cos(elevation) * dist
+      )
       controls.update()
       home.pos.copy(camera.position)
       home.target.copy(controls.target)
     }
 
+    // One line, two policies. The whole network side by side is a three and a
+    // half to one footprint, which pushes the camera so far back that the
+    // bunching stops being legible. A single line lets the camera get close,
+    // and the bunching is the entire argument.
     const build = () => {
-      if (modeRef.current === 'compare') {
-        const left = LINE_IDS.map((l) => peekRun(l, 'baseline')).filter(Boolean)
-        const right = LINE_IDS.map((l) => peekRun(l, FINAL_TAG)).filter(Boolean)
-        if (!left.length || !right.length) return
-        const project = makeProjector(boundsOf(right))
-        const width = boundsOf(right)
-        const spanX = (width.maxX - width.minX) * SCALE
-        const gap = spanX * 0.07
-        state.systems = [
-          buildSystem(left, project, -(spanX + gap) / 2, "today's timetable"),
-          buildSystem(right, project, (spanX + gap) / 2, 'after learning'),
-        ]
-      } else {
-        const docs = LINE_IDS.map((l) => peekRun(l, FINAL_TAG)).filter(Boolean)
-        if (!docs.length) return
-        state.systems = [buildSystem(docs, makeProjector(boundsOf(docs)), 0, null)]
-      }
+      const left = peekRun(COMPARE_LINE, 'baseline')
+      const right = peekRun(COMPARE_LINE, FINAL_TAG)
+      if (!left || !right) return
+      const project = makeProjector(boundsOf([right]))
+      const b = boundsOf([right])
+      const spanX = (b.maxX - b.minX) * SCALE
+      const spanZ = (b.maxY - b.minY) * SCALE
+      // Stacked along z rather than x: the L runs mostly east to west, so two
+      // copies side by side would be twice as wide again and read as one long
+      // smear. One in front of the other keeps both close to the camera.
+      // Left and right, as a comparison should read.
+      const gap = Math.max(spanX * 0.12, 8)
+      state.systems = [
+        buildSystem([left], project, -(spanX + gap) / 2, 0, "today's timetable"),
+        buildSystem([right], project, (spanX + gap) / 2, 0, 'after learning'),
+      ]
       frameOn(state.systems)
       setReady(true)
     }
@@ -258,10 +281,9 @@ export default function Scene3D({ playing, mode = 'single' }) {
     ro.observe(host)
 
     // Only the trained runs, one tag, loaded once.
-    const need = mode === 'compare' ? ['baseline', FINAL_TAG] : [FINAL_TAG]
     Promise.all(
-      need.flatMap((tag) =>
-        LINE_IDS.map((l) => (peekRun(l, tag) ? Promise.resolve() : loadRun(l, tag).catch(() => {})))
+      ['baseline', FINAL_TAG].map((tag) =>
+        peekRun(COMPARE_LINE, tag) ? Promise.resolve() : loadRun(COMPARE_LINE, tag).catch(() => {})
       )
     ).then(() => {
       if (!disposed) build()
@@ -287,7 +309,7 @@ export default function Scene3D({ playing, mode = 'single' }) {
       })
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement)
     }
-  }, [mode])
+  }, [])
 
   return (
     <div className="scene3d">
