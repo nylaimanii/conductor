@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+
 import { loadRun, peekRun, FINAL_TAG } from '../runs.js'
 import { sampleLine } from '../sample.js'
 import { posToXY, boundsOf } from '../geometry.js'
@@ -16,6 +16,7 @@ import {
   buildRiders,
   buildLabel,
   buildCaption,
+  buildPool,
 } from './world.js'
 
 // The scene. A physical world seen from outside, orbited freely.
@@ -24,12 +25,16 @@ import {
 // scrubber, no labels beyond a quiet letter per line. The simulation runs on
 // its own clock and is never gated on the camera.
 
-const TICKS_PER_SEC = 12
+// Fast enough that the world streams. At a walking rate the scene reads as a
+// progress bar rather than as travelling.
+const TICKS_PER_SEC = 46
 // Riders are deliberately sparse. A platform shows at most this many, with no
 // count anywhere. The crowd is a texture, not a readout.
 const RIDERS_PER_STATION = 4
 // The line the policy was trained on, and the one the comparison runs.
 const COMPARE_LINE = 'L'
+// Both sides ride the same train index, so the two views stay comparable.
+const MOUNT_INDEX = 0
 
 export default function Scene3D({ playing }) {
   const hostRef = useRef(null)
@@ -65,28 +70,48 @@ export default function Scene3D({ playing }) {
     // sheet that stops.
     scene.fog = new THREE.Fog(COLORS.bg, 70, 320)
 
-    const camera = new THREE.PerspectiveCamera(45, host.clientWidth / host.clientHeight, 0.5, 1200)
-    camera.position.set(42, 34, 54)
+    // One camera per side. The comparison is two ride-alongs running in
+    // lockstep, so each needs its own view mounted on its own train.
+    const cams = [0, 1].map(() => {
+      const c = new THREE.PerspectiveCamera(58, host.clientWidth / 2 / host.clientHeight, 0.3, 1200)
+      return c
+    })
 
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.dampingFactor = 0.07
-    controls.rotateSpeed = 0.55
-    controls.zoomSpeed = 0.85
-    controls.panSpeed = 0.6
-    // Full turn horizontally; vertically from just above ground to top down.
-    controls.minPolarAngle = 0.02
-    controls.maxPolarAngle = Math.PI / 2 - 0.03
-    controls.minDistance = 6
-    controls.maxDistance = 260
-    controls.target.set(0, 0, 0)
-
-    const home = { pos: camera.position.clone(), target: controls.target.clone() }
+    // Orbit is expressed relative to the mount rather than to a fixed target,
+    // because the target is a train travelling down a line. OrbitControls
+    // assumes a stationary centre and fights a moving one.
+    const orbit = { yaw: 0, pitch: 0.3, dist: 22, tYaw: 0, tPitch: 0.3, tDist: 22 }
+    const HOME = { yaw: 0, pitch: 0.3, dist: 22 }
     resetRef.current = () => {
-      camera.position.copy(home.pos)
-      controls.target.copy(home.target)
-      controls.update()
+      orbit.tYaw = HOME.yaw
+      orbit.tPitch = HOME.pitch
+      orbit.tDist = HOME.dist
     }
+
+    // Pointer drag orbits both views together; wheel pulls back from the ride
+    // along all the way out to an overhead survey.
+    let drag = null
+    const el = renderer.domElement
+    const onDown = (e) => {
+      drag = { x: e.clientX, y: e.clientY }
+      el.setPointerCapture?.(e.pointerId)
+    }
+    const onMove = (e) => {
+      if (!drag) return
+      orbit.tYaw -= (e.clientX - drag.x) * 0.005
+      orbit.tPitch = Math.max(-0.25, Math.min(1.45, orbit.tPitch + (e.clientY - drag.y) * 0.004))
+      drag = { x: e.clientX, y: e.clientY }
+    }
+    const onUp = () => (drag = null)
+    const onWheel = (e) => {
+      e.preventDefault()
+      orbit.tDist = Math.max(6, Math.min(260, orbit.tDist * Math.exp(e.deltaY * 0.0016)))
+    }
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', onUp)
+    el.addEventListener('pointercancel', onUp)
+    el.addEventListener('wheel', onWheel, { passive: false })
 
     buildLights(scene)
     buildGround(scene)
@@ -101,10 +126,13 @@ export default function Scene3D({ playing }) {
 
     // A system is one running simulation: its own tracks, trains and riders,
     // offset along x so two can stand side by side in the same world.
-    const buildSystem = (docs, project, offsetX, offsetZ, caption) => {
+    const buildSystem = (docs, project, offsetX, offsetZ, caption, yaw = 0) => {
       const group = new THREE.Group()
       group.position.x = offsetX
       group.position.z = offsetZ
+      // Turned so the line lies across the frame. Left as a diagonal it cuts
+      // corner to corner and leaves most of the screen as empty floor.
+      group.rotation.y = yaw
       scene.add(group)
 
       let trainCount = 0
@@ -123,6 +151,7 @@ export default function Scene3D({ playing }) {
         docs,
         project,
         group,
+        yaw,
         trains: buildTrains(group, trainCount),
         contacts: buildContacts(group, trainCount),
         riders: buildRiders(group, stationCount * RIDERS_PER_STATION),
@@ -132,51 +161,14 @@ export default function Scene3D({ playing }) {
       // line letters: without it, two identical worlds side by side say nothing
       // about which is which.
       if (caption) {
-        const box = new THREE.Box3()
-        for (const d of docs) for (const st of d.stations) box.expandByPoint(project(st.x, st.y))
-        const c = box.getCenter(new THREE.Vector3())
-        buildCaption(group, caption, new THREE.Vector3(c.x, 0, box.min.z - 5))
+        // Anchored to this line's own first station, inside the group, so the
+        // yaw carries it with the line. Positioning it from unrotated bounds
+        // put one system's caption over the other's track.
+        const st = docs[0].stations[0]
+        const p0 = project(st.x, st.y)
+        buildCaption(group, caption, new THREE.Vector3(p0.x + 26, 0, p0.z))
       }
       return sys
-    }
-
-    const frameOn = (systems) => {
-      const box = new THREE.Box3()
-      for (const sys of systems) {
-        for (const d of sys.docs) {
-          for (const st of d.stations) {
-            const p = sys.project(st.x, st.y)
-            box.expandByPoint(
-              new THREE.Vector3(p.x + sys.group.position.x, 0, p.z + sys.group.position.z)
-            )
-          }
-        }
-      }
-      const sphere = box.getBoundingSphere(new THREE.Sphere())
-      const centre = sphere.center.clone()
-      centre.y = 0
-
-      // Fit the bounding sphere, not the box. The line runs diagonally, so a
-      // box fit depends on which way the scene happens to be oriented and
-      // pushed half of it off screen. A sphere does not care.
-      const vFov = (camera.fov * Math.PI) / 180
-      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect)
-      // Deliberately inside a true sphere fit. Fitting the sphere exactly
-      // leaves the scene small in frame, because the sphere of two diagonal
-      // lines is much larger than what they actually occupy on screen. This
-      // crops the empty corners and gets the camera close.
-      const dist = (sphere.radius / Math.sin(Math.min(vFov, hFov) / 2)) * 0.72
-      const elevation = 0.66
-
-      controls.target.copy(centre)
-      camera.position.set(
-        centre.x,
-        Math.sin(elevation) * dist,
-        centre.z + Math.cos(elevation) * dist
-      )
-      controls.update()
-      home.pos.copy(camera.position)
-      home.target.copy(controls.target)
     }
 
     // One line, two policies. The whole network side by side is a three and a
@@ -194,20 +186,29 @@ export default function Scene3D({ playing }) {
       // Stacked along z rather than x: the L runs mostly east to west, so two
       // copies side by side would be twice as wide again and read as one long
       // smear. One in front of the other keeps both close to the camera.
-      // Left and right, as a comparison should read.
-      const gap = Math.max(spanX * 0.12, 8)
+      // The line's own axis, so it can be turned flat across the frame.
+      const head0 = project(left.stations[0].x, left.stations[0].y)
+      const tail0 = project(
+        left.stations[left.stations.length - 1].x,
+        left.stations[left.stations.length - 1].y
+      )
+      const yaw = Math.atan2(tail0.z - head0.z, tail0.x - head0.x)
+
+      // Stacked, not side by side. Once each line runs the full width of the
+      // frame the two cannot also sit beside each other, and full width per
+      // line is what makes individual trains legible without zooming.
+      const gap = 22
       state.systems = [
-        buildSystem([left], project, -(spanX + gap) / 2, 0, "today's timetable"),
-        buildSystem([right], project, (spanX + gap) / 2, 0, 'after learning'),
+        buildSystem([left], project, 0, -gap / 2, "today's timetable", yaw),
+        buildSystem([right], project, 0, gap / 2, 'after learning', yaw),
       ]
-      frameOn(state.systems)
+      buildPool(scene, 160)
       setReady(true)
     }
 
     const frame = () => {
       raf = requestAnimationFrame(frame)
       const dt = Math.min(0.05, clock.getDelta())
-      controls.update()
 
       if (state.systems.length) {
         if (playingRef.current) head += dt * TICKS_PER_SEC
@@ -221,9 +222,10 @@ export default function Scene3D({ playing }) {
           let ri = 0
           for (const doc of sys.docs) {
             const s2 = sampleLine(doc, Math.min(head, doc.ticks.length - 1))
-            for (const tr of s2.trains) {
+            for (let tix = 0; tix < s2.trains.length; tix++) {
+              const tr = s2.trains[tix]
               const p = posToXY(s2.stations, tr.pos)
-              const ahead = posToXY(s2.stations, Math.min(s2.stations.length - 1, tr.pos + 0.05))
+              const ahead = posToXY(s2.stations, Math.min(s2.stations.length - 1, tr.pos + 0.4))
               const w = sys.project(p.x, p.y)
               const wa = sys.project(ahead.x, ahead.y)
 
@@ -237,6 +239,17 @@ export default function Scene3D({ playing }) {
               dummy.rotation.set(0, 0, 0)
               dummy.updateMatrix()
               sys.contacts.setMatrixAt(ti, dummy.matrix)
+
+              // The train this side's camera rides.
+              if (tix === MOUNT_INDEX) {
+                const dx = wa.x - w.x
+                const dz = wa.z - w.z
+                const len = Math.hypot(dx, dz) || 1
+                sys.mount = {
+                  pos: new THREE.Vector3(w.x + sys.group.position.x, 0.9, w.z + sys.group.position.z),
+                  dir: new THREE.Vector3(dx / len, 0, dz / len),
+                }
+              }
               ti++
             }
 
@@ -268,13 +281,43 @@ export default function Scene3D({ playing }) {
         }
       }
 
-      renderer.render(scene, camera)
+      // Ease the orbit, then mount each camera behind its train.
+      const k = 1 - Math.exp(-dt * 6)
+      orbit.yaw += (orbit.tYaw - orbit.yaw) * k
+      orbit.pitch += (orbit.tPitch - orbit.pitch) * k
+      orbit.dist += (orbit.tDist - orbit.dist) * k
+
+      const W = host.clientWidth
+      const H = host.clientHeight
+      const halfW = Math.floor(W / 2)
+      renderer.setScissorTest(true)
+
+      state.systems.forEach((sys, i) => {
+        const cam = cams[i]
+        const m = sys.mount
+        if (m) {
+          const fwd = m.dir
+          const back = orbit.dist * Math.cos(orbit.pitch)
+          const up = orbit.dist * Math.sin(orbit.pitch) + 1.6
+          const cy = Math.cos(orbit.yaw)
+          const sy = Math.sin(orbit.yaw)
+          const bx = -(fwd.x * cy - fwd.z * sy)
+          const bz = -(fwd.x * sy + fwd.z * cy)
+          cam.position.set(m.pos.x + bx * back, m.pos.y + up, m.pos.z + bz * back)
+          cam.lookAt(m.pos.x + fwd.x * 34, m.pos.y + 1.2, m.pos.z + fwd.z * 34)
+        }
+        cam.aspect = halfW / H
+        cam.updateProjectionMatrix()
+        const x = i === 0 ? 0 : halfW
+        renderer.setViewport(x, 0, halfW, H)
+        renderer.setScissor(x, 0, halfW, H)
+        renderer.render(scene, cam)
+      })
+      renderer.setScissorTest(false)
     }
 
     const resize = () => {
       if (!host.clientWidth) return
-      camera.aspect = host.clientWidth / host.clientHeight
-      camera.updateProjectionMatrix()
       renderer.setSize(host.clientWidth, host.clientHeight)
     }
     const ro = new ResizeObserver(resize)
@@ -295,7 +338,6 @@ export default function Scene3D({ playing }) {
       disposed = true
       cancelAnimationFrame(raf)
       ro.disconnect()
-      controls.dispose()
       renderer.dispose()
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose()

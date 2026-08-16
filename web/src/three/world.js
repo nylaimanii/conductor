@@ -21,8 +21,8 @@ export const COLORS = {
   // trains in brightness so nothing on the plane competes with them.
   track: 0x333c44,
   station: 0x4d5862,
-  trainBody: 0xdde6ee,
-  trainEmissive: 0x2a3a45,
+  trainBody: 0xeef4f8,
+  trainEmissive: 0x161c21,
   rider: 0x46545f,
   label: 'rgba(190,205,218,0.72)',
 }
@@ -36,7 +36,7 @@ export function makeProjector(bounds) {
 
 export function buildLights(scene) {
   // Very low ambient: the scene is near black and the trains carry the light.
-  scene.add(new THREE.AmbientLight(0x2c3d4c, 0.42))
+  scene.add(new THREE.AmbientLight(0x3a444d, 0.3))
 
   // Key, from high and to one side, casting the soft shadows onto the plane.
   const key = new THREE.DirectionalLight(0xdfeaf5, 1.9)
@@ -56,12 +56,12 @@ export function buildLights(scene) {
 
   // Rim, from low and behind, cool and dim. This is what gives the volumes an
   // edge against the dark rather than dissolving into it.
-  const rim = new THREE.DirectionalLight(0x6fa8d0, 0.9)
+  const rim = new THREE.DirectionalLight(0x8fb0c8, 0.75)
   rim.position.set(-50, 14, -45)
   scene.add(rim)
 
   // A faint sky/ground bounce so the tops of things are not flat.
-  scene.add(new THREE.HemisphereLight(0x33485f, 0x070a0d, 0.3))
+  scene.add(new THREE.HemisphereLight(0x3d4c5c, 0x07090b, 0.25))
 
   return key
 }
@@ -72,11 +72,11 @@ function gridTexture() {
   c.width = S
   c.height = S
   const g = c.getContext('2d')
-  g.fillStyle = '#0d1114'
+  g.fillStyle = '#0e1316'
   g.fillRect(0, 0, S, S)
   // Barely there. Dark grey on near black: enough to read the plane receding,
   // not enough to read as a chart.
-  g.strokeStyle = 'rgba(150,180,205,0.055)'
+  g.strokeStyle = 'rgba(160,195,225,0.10)'
   g.lineWidth = 1
   g.beginPath()
   g.moveTo(0.5, 0)
@@ -87,9 +87,44 @@ function gridTexture() {
   const tex = new THREE.CanvasTexture(c)
   tex.wrapS = THREE.RepeatWrapping
   tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(140, 140)
+  tex.repeat.set(190, 190)
   tex.anisotropy = 8
   return tex
+}
+
+// A soft pool of light under the scene, so the plane has a centre and falls
+// off rather than reading as an evenly lit sheet that simply stops.
+function poolTexture() {
+  const S = 512
+  const c = document.createElement('canvas')
+  c.width = S
+  c.height = S
+  const g = c.getContext('2d')
+  const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+  grad.addColorStop(0, 'rgba(120,165,205,0.07)')
+  grad.addColorStop(0.45, 'rgba(90,130,170,0.03)')
+  grad.addColorStop(1, 'rgba(0,0,0,0)')
+  g.fillStyle = grad
+  g.fillRect(0, 0, S, S)
+  return new THREE.CanvasTexture(c)
+}
+
+export function buildPool(scene, radius) {
+  const geo = new THREE.PlaneGeometry(radius * 2, radius * 2)
+  geo.rotateX(-Math.PI / 2)
+  const mesh = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({
+      map: poolTexture(),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+  )
+  mesh.position.y = 0.005
+  mesh.renderOrder = -1
+  scene.add(mesh)
+  return mesh
 }
 
 export function buildGround(scene) {
@@ -111,45 +146,88 @@ export function buildGround(scene) {
 // One line becomes a strip of thin boxes following its polyline, raised just
 // off the plane. Boxes rather than a tube because the result reads as a laid
 // track, and because a flat top face catches the key light cleanly.
+// A real permanent way rather than a stroke: a ballast bed, two rails that
+// catch the light, and ties at a regular interval. The ties are the point.
+// Streaming underneath at speed they are what sells motion, the way lane
+// markings do in the reference, and no amount of camera work substitutes.
 export function buildTrack(scene, stations, project) {
   const group = new THREE.Group()
-  const mat = new THREE.MeshStandardMaterial({
-    color: COLORS.track,
-    roughness: 0.85,
-    metalness: 0.1,
+
+  const GAUGE = 1.05
+  const TIE_EVERY = 1.5
+
+  const ballastMat = new THREE.MeshStandardMaterial({
+    color: 0x242c33,
+    roughness: 1.0,
+    metalness: 0.0,
+  })
+  const railMat = new THREE.MeshStandardMaterial({
+    color: 0x9fb3c4,
+    roughness: 0.22,
+    metalness: 0.85,
+  })
+  const tieMat = new THREE.MeshStandardMaterial({
+    color: 0x2e363d,
+    roughness: 0.95,
+    metalness: 0.0,
   })
 
-  const W = 0.55
-  const H = 0.16
+  // Count ties first so they can share one instanced draw.
+  const segs = []
+  let tieTotal = 0
   for (let i = 0; i < stations.length - 1; i++) {
     const a = project(stations[i].x, stations[i].y)
     const b = project(stations[i + 1].x, stations[i + 1].y)
     const len = a.distanceTo(b)
     if (len < 1e-6) continue
-    const geo = new THREE.BoxGeometry(len + W * 0.9, H, W)
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.position.copy(a).add(b).multiplyScalar(0.5)
-    mesh.position.y = H / 2
-    mesh.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x)
-    mesh.receiveShadow = true
-    mesh.castShadow = false
-    group.add(mesh)
+    const n = Math.max(1, Math.floor(len / TIE_EVERY))
+    segs.push({ a, b, len, n })
+    tieTotal += n
   }
 
-  // Stations: small raised pads, a touch lighter than the track.
-  const padMat = new THREE.MeshStandardMaterial({
-    color: COLORS.station,
-    roughness: 0.8,
-    metalness: 0.15,
-  })
-  const padGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 16)
-  for (const st of stations) {
-    const p = project(st.x, st.y)
-    const pad = new THREE.Mesh(padGeo, padMat)
-    pad.position.set(p.x, 0.1, p.z)
-    pad.receiveShadow = true
-    group.add(pad)
+  const tieGeo = new THREE.BoxGeometry(0.34, 0.1, GAUGE + 0.62)
+  const ties = new THREE.InstancedMesh(tieGeo, tieMat, Math.max(1, tieTotal))
+  ties.receiveShadow = true
+  const dummy = new THREE.Object3D()
+  let ti = 0
+
+  for (const seg of segs) {
+    const { a, b, len, n } = seg
+    const yaw = -Math.atan2(b.z - a.z, b.x - a.x)
+    const mid = a.clone().add(b).multiplyScalar(0.5)
+
+    // Ballast: a low wide bed the track sits on.
+    const bal = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.1, GAUGE + 0.75), ballastMat)
+    bal.position.set(mid.x, 0.07, mid.z)
+    bal.rotation.y = yaw
+    bal.receiveShadow = true
+    group.add(bal)
+
+    // Two rails, raised above the ties, metallic so they pick up a highlight
+    // and read as the brightest thing on the plane after the trains.
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 0.6, 0.11, 0.13), railMat)
+      const nx = Math.sin(yaw) * side * (GAUGE / 2)
+      const nz = Math.cos(yaw) * side * (GAUGE / 2)
+      rail.position.set(mid.x + nx, 0.245, mid.z + nz)
+      rail.rotation.y = yaw
+      rail.castShadow = false
+      rail.receiveShadow = true
+      group.add(rail)
+    }
+
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n
+      dummy.position.set(a.x + (b.x - a.x) * t, 0.185, a.z + (b.z - a.z) * t)
+      dummy.rotation.set(0, yaw, 0)
+      dummy.scale.setScalar(1)
+      dummy.updateMatrix()
+      ties.setMatrixAt(ti++, dummy.matrix)
+    }
   }
+  ties.count = ti
+  ties.instanceMatrix.needsUpdate = true
+  group.add(ties)
 
   scene.add(group)
   return group
@@ -162,12 +240,16 @@ export function buildTrains(scene, count) {
   // and since the trains are the only bright thing in the frame their
   // silhouette is doing most of the work. Segments kept low: the bevel only
   // has to catch the rim light, not survive a close inspection.
-  const geo = new RoundedBoxGeometry(2.6, 0.85, 1.0, 4, 0.22)
-  geo.translate(0, 0.425, 0)
+  // The vehicles are the subject, not details on a line. Sized so a train is
+  // roughly five times the width of the track it sits on and most of the gap
+  // between two stations, which is what makes a pair of them touching read as
+  // bunching from across the room.
+  const geo = new RoundedBoxGeometry(4.0, 1.35, 1.9, 5, 0.4)
+  geo.translate(0, 0.98, 0)
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.trainBody,
     emissive: COLORS.trainEmissive,
-    emissiveIntensity: 0.55,
+    emissiveIntensity: 0.35,
     roughness: 0.35,
     metalness: 0.25,
   })
@@ -184,7 +266,7 @@ export function buildTrains(scene, count) {
 // sitting on the plane rather than floating over it. Costs one instanced draw
 // and does not depend on the shadow map resolution.
 export function buildContacts(scene, count) {
-  const geo = new THREE.CircleGeometry(1.5, 20)
+  const geo = new THREE.CircleGeometry(2.3, 20)
   geo.rotateX(-Math.PI / 2)
   const mat = new THREE.MeshBasicMaterial({
     color: 0x000000,
@@ -203,8 +285,8 @@ export function buildContacts(scene, count) {
 // Riders: small quiet volumes beside a platform. Sparse on purpose, capped
 // low, no labels. If in doubt there are fewer of them.
 export function buildRiders(scene, count) {
-  const geo = new RoundedBoxGeometry(0.18, 0.44, 0.18, 2, 0.06)
-  geo.translate(0, 0.22, 0)
+  const geo = new RoundedBoxGeometry(0.3, 0.8, 0.3, 2, 0.1)
+  geo.translate(0, 0.4, 0)
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.rider,
     roughness: 0.9,
