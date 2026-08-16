@@ -43,7 +43,8 @@ const TICKS_PER_SEC = 4.5
 // count appears anywhere.
 const RIDERS_PER_FIGURE = 2
 // The line the policy was trained on, and the one the comparison runs.
-const COMPARE_LINE = 'L'
+// Used when no line has been chosen.
+const DEFAULT_LINE = 'L'
 
 // The window, in the run's own tick numbers, computed by sim on this episode:
 // t 716 to 900, exactly one loop of the L at its 184 tick loop time.
@@ -59,19 +60,46 @@ const COMPARE_LINE = 'L'
 // Held as tick numbers rather than array indices because the run files are
 // subsampled: t steps by two, so t 716 is the 358th entry today and need not
 // be tomorrow.
-const LOOP_FROM_T = 716
-const LOOP_TO_T = 900
+// Loop window per line, in each run's own tick numbers, computed by the sim
+// agent. One object, so a revision is a single edit.
+//
+// Every one satisfies the same condition: the learned run's headway cv is
+// strictly below the timetable's at every tick inside the window. The minimum
+// gap over the window is recorded beside each, since that is the number the
+// comparison rests on. All five end at t 900, the most drifted the timetable
+// gets.
+const LINE_WINDOWS = {
+  L: { from: 716, to: 900, minCvGap: 0.0947 },
+  G: { from: 740, to: 900, minCvGap: 0.322 },
+  7: { from: 732, to: 900, minCvGap: 0.4555 },
+  1: { from: 604, to: 900, minCvGap: 0.0855 },
+  6: { from: 604, to: 900, minCvGap: 0.1283 },
+}
 
 // First and last entry inside the window. Both ends are inclusive, so the loop
 // runs one full circuit and rejoins itself.
 const windowOf = (doc) => {
+  const w = LINE_WINDOWS[doc.line] || LINE_WINDOWS[DEFAULT_LINE]
   const ts = doc.ticks
   let from = 0
   let to = ts.length - 1
-  while (from < to && ts[from].t < LOOP_FROM_T) from++
-  while (to > from && ts[to].t > LOOP_TO_T) to--
+  // Bounded loops rather than while: these can only ever walk the array once.
+  for (let k = 0; k < ts.length; k++) {
+    if (ts[k].t >= w.from) {
+      from = k
+      break
+    }
+  }
+  for (let k = ts.length - 1; k >= 0; k--) {
+    if (ts[k].t <= w.to) {
+      to = k
+      break
+    }
+  }
+  if (to < from) to = from
   return { from, to }
 }
+
 
 // How far ahead the next train is ON THE SAME WAY, going the SAME direction,
 // in station blocks. Infinity means clear track to the terminal.
@@ -246,7 +274,7 @@ function describe(systems) {
   return 'both sides are running the same day, with the same riders.'
 }
 
-export default function Scene3D({ playing }) {
+export default function Scene3D({ playing, line }) {
   const hostRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(null)
@@ -259,6 +287,7 @@ export default function Scene3D({ playing }) {
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    const lineId = line || DEFAULT_LINE
 
     let renderer
     try {
@@ -422,8 +451,8 @@ export default function Scene3D({ playing }) {
     // bunching stops being legible. A single line lets the camera get close,
     // and the bunching is the entire argument.
     const build = () => {
-      const left = peekRun(COMPARE_LINE, 'baseline')
-      const right = peekRun(COMPARE_LINE, FINAL_TAG)
+      const left = peekRun(lineId, 'baseline')
+      const right = peekRun(lineId, FINAL_TAG)
       if (!left || !right) return
       const project = makeProjector(boundsOf([right]))
 
@@ -754,7 +783,7 @@ export default function Scene3D({ playing }) {
     // Only the trained runs, one tag, loaded once.
     Promise.all(
       ['baseline', FINAL_TAG].map((tag) =>
-        peekRun(COMPARE_LINE, tag) ? Promise.resolve() : loadRun(COMPARE_LINE, tag).catch(() => {})
+        peekRun(lineId, tag) ? Promise.resolve() : loadRun(lineId, tag).catch(() => {})
       )
     ).then(() => {
       if (!disposed) build()

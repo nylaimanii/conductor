@@ -159,3 +159,68 @@
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* ---- line picker ------------------------------------------------------- */
+/* This is the transfer claim, which is the strongest thing in the demo, and
+   at full size it could not be found on screen. So: real buttons, sized to be
+   obviously pressable, with the chosen one filled rather than merely tinted.
+   It fades in once the L has run on its own for a while. */
+
+.line-picker {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%) translateY(6px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1400ms ease, transform 1400ms ease;
+}
+
+.line-picker--in {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.line-row {
+  display: flex;
+  gap: 10px;
+}
+
+.line-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(186, 208, 226, 0.55);
+  background: rgba(18, 24, 30, 0.82);
+  color: rgba(226, 238, 248, 0.92);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.line-btn:hover {
+  border-color: rgba(226, 240, 252, 0.95);
+  transform: translateY(-2px);
+}
+
+.line-btn--on {
+  background: rgba(228, 240, 250, 0.96);
+  border-color: rgba(228, 240, 250, 0.96);
+  color: #0e1319;
+  box-shadow: 0 0 0 4px rgba(228, 240, 250, 0.14);
+}
+
+.line-note {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: rgba(206, 222, 238, 0.72);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
+}
