@@ -1,0 +1,322 @@
+{
+ "steps": 2400048,
+ "tick_seconds": 10.0,
+ "gammas": [
+  0.0,
+  0.25,
+  0.5,
+  1.0
+ ],
+ "lines": {
+  "L": {
+   "timetable": {
+    "cv": 0.3276643593519012,
+    "wait_ticks": 19.118092185086716,
+    "invehicle_ticks": 44.50133705340316,
+    "journey_boarded_ticks": 63.69544805487667,
+    "journey_all_ticks": 63.06840605303195,
+    "unserved_pct": 1.2397279678642437,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "012_shipped": {
+    "cv": 0.06568585970596967,
+    "wait_ticks": 19.429885419472278,
+    "invehicle_ticks": 44.572007628064746,
+    "journey_boarded_ticks": 64.07917290099913,
+    "journey_all_ticks": 63.510712434832044,
+    "unserved_pct": 1.102168931336569,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "skip_g0": {
+    "cv": 1.351741524057092,
+    "wait_ticks": 33.81908321484558,
+    "invehicle_ticks": 49.552649942410454,
+    "journey_boarded_ticks": 83.129049458294,
+    "journey_all_ticks": 81.67941307994738,
+    "unserved_pct": 3.4016359978502697,
+    "skip_rate_pct": 3.142857142857143,
+    "carried_past": 75.6
+   },
+   "skip_g0.25": {
+    "cv": 0.542140324572476,
+    "wait_ticks": 32.38650987941007,
+    "invehicle_ticks": 47.43999046430548,
+    "journey_boarded_ticks": 74.79823737897254,
+    "journey_all_ticks": 78.19429326763927,
+    "unserved_pct": 3.4486311061447106,
+    "skip_rate_pct": 27.26031746031746,
+    "carried_past": 83.2
+   },
+   "skip_g0.5": {
+    "cv": 0.8960782784790355,
+    "wait_ticks": 23.789812983453647,
+    "invehicle_ticks": 46.144224960685,
+    "journey_boarded_ticks": 69.87844985967085,
+    "journey_all_ticks": 68.84526651453582,
+    "unserved_pct": 2.3575393807301532,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "skip_g1": {
+    "cv": 1.3279202204495177,
+    "wait_ticks": 65.12412271059597,
+    "invehicle_ticks": 54.691853469602734,
+    "journey_boarded_ticks": 106.15157509557687,
+    "journey_all_ticks": 115.11799276657928,
+    "unserved_pct": 8.60452793644997,
+    "skip_rate_pct": 25.752380952380953,
+    "carried_past": 218.4
+   }
+  },
+  "G": {
+   "timetable": {
+    "cv": 0.3957721495951798,
+    "wait_ticks": 17.385237198200834,
+    "invehicle_ticks": 38.98805099950255,
+    "journey_boarded_ticks": 56.400020084577,
+    "journey_all_ticks": 55.76870753633699,
+    "unserved_pct": 1.5511053777764205,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "012_shipped": {
+    "cv": 0.047158497803341234,
+    "wait_ticks": 16.936456061238875,
+    "invehicle_ticks": 39.44045207170807,
+    "journey_boarded_ticks": 56.42363662186322,
+    "journey_all_ticks": 55.85423981818426,
+    "unserved_pct": 1.3248904736848033,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "skip_g0": {
+    "cv": 1.5119060511383249,
+    "wait_ticks": 32.443853257860994,
+    "invehicle_ticks": 45.28331876254237,
+    "journey_boarded_ticks": 76.28396898800784,
+    "journey_all_ticks": 75.12973438849251,
+    "unserved_pct": 5.708898187720024,
+    "skip_rate_pct": 1.862962962962963,
+    "carried_past": 37.0
+   },
+   "skip_g0.25": {
+    "cv": 0.6176272705058234,
+    "wait_ticks": 31.21911050834593,
+    "invehicle_ticks": 43.10329705811567,
+    "journey_boarded_ticks": 72.88267912872,
+    "journey_all_ticks": 72.82026338310666,
+    "unserved_pct": 3.4858057163301774,
+    "skip_rate_pct": 20.096296296296295,
+    "carried_past": 66.6
+   },
+   "skip_g0.5": {
+    "cv": 0.8540860081850667,
+    "wait_ticks": 19.590869235556283,
+    "invehicle_ticks": 39.78500608045256,
+    "journey_boarded_ticks": 59.31131512241959,
+    "journey_all_ticks": 58.49677704554382,
+    "unserved_pct": 2.202080839597622,
+    "skip_rate_pct": 0.04444444444444444,
+    "carried_past": 0.0
+   },
+   "skip_g1": {
+    "cv": 1.0317452545641346,
+    "wait_ticks": 76.84198115658857,
+    "invehicle_ticks": 64.39635934688728,
+    "journey_boarded_ticks": 117.50734859130262,
+    "journey_all_ticks": 135.15493273624412,
+    "unserved_pct": 9.526368856073157,
+    "skip_rate_pct": 18.78148148148148,
+    "carried_past": 475.4
+   }
+  },
+  "7": {
+   "timetable": {
+    "cv": 1.1610043140338546,
+    "wait_ticks": 19.688760184387075,
+    "invehicle_ticks": 46.505279713944276,
+    "journey_boarded_ticks": 66.21344373572617,
+    "journey_all_ticks": 65.35367760431497,
+    "unserved_pct": 1.8051548129059427,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "012_shipped": {
+    "cv": 0.24220469639227754,
+    "wait_ticks": 19.77268883661574,
+    "invehicle_ticks": 46.48095163951577,
+    "journey_boarded_ticks": 66.33727501971751,
+    "journey_all_ticks": 65.94934909017486,
+    "unserved_pct": 0.6550715115376993,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "skip_g0": {
+    "cv": 1.4771619872976145,
+    "wait_ticks": 52.47523251496257,
+    "invehicle_ticks": 54.44296984495727,
+    "journey_boarded_ticks": 101.09260362129037,
+    "journey_all_ticks": 103.50667503727814,
+    "unserved_pct": 6.264478452886172,
+    "skip_rate_pct": 11.014814814814814,
+    "carried_past": 517.8
+   },
+   "skip_g0.25": {
+    "cv": 0.8816572951270665,
+    "wait_ticks": 34.25010501993213,
+    "invehicle_ticks": 48.582000080949356,
+    "journey_boarded_ticks": 83.09116301532345,
+    "journey_all_ticks": 82.12088449915134,
+    "unserved_pct": 1.462702665481015,
+    "skip_rate_pct": 14.70185185185185,
+    "carried_past": 221.0
+   },
+   "skip_g0.5": {
+    "cv": 1.5189721806187397,
+    "wait_ticks": 32.16231463331534,
+    "invehicle_ticks": 51.17274447276162,
+    "journey_boarded_ticks": 83.44928892087287,
+    "journey_all_ticks": 82.28351245860304,
+    "unserved_pct": 2.0584075707200467,
+    "skip_rate_pct": 8.35,
+    "carried_past": 200.4
+   },
+   "skip_g1": {
+    "cv": 1.1617268317922573,
+    "wait_ticks": 166.97176613482574,
+    "invehicle_ticks": 73.30215777162638,
+    "journey_boarded_ticks": 155.18316349923583,
+    "journey_all_ticks": 220.32294598226545,
+    "unserved_pct": 27.17362156805559,
+    "skip_rate_pct": 26.781481481481485,
+    "carried_past": 1640.8
+   }
+  },
+  "1": {
+   "timetable": {
+    "cv": 0.37025542927696986,
+    "wait_ticks": 30.37172771903032,
+    "invehicle_ticks": 60.57435757688116,
+    "journey_boarded_ticks": 90.65194641776375,
+    "journey_all_ticks": 90.05164633353118,
+    "unserved_pct": 1.4739848139726308,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "012_shipped": {
+    "cv": 0.09628726659472939,
+    "wait_ticks": 33.19372062936351,
+    "invehicle_ticks": 61.0642788372072,
+    "journey_boarded_ticks": 93.26383284220468,
+    "journey_all_ticks": 92.56198595621291,
+    "unserved_pct": 2.7749828839305217,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "skip_g0": {
+    "cv": 1.3269304462745155,
+    "wait_ticks": 60.871270379358506,
+    "invehicle_ticks": 74.13709039356806,
+    "journey_boarded_ticks": 126.31031142506136,
+    "journey_all_ticks": 128.93934942976497,
+    "unserved_pct": 8.15746531737009,
+    "skip_rate_pct": 9.166666666666668,
+    "carried_past": 379.8
+   },
+   "skip_g0.25": {
+    "cv": 0.3310324044995651,
+    "wait_ticks": 43.11606469954016,
+    "invehicle_ticks": 65.24485907318397,
+    "journey_boarded_ticks": 106.16008035313689,
+    "journey_all_ticks": 105.68323409029124,
+    "unserved_pct": 4.072029647621996,
+    "skip_rate_pct": 15.188888888888888,
+    "carried_past": 154.8
+   },
+   "skip_g0.5": {
+    "cv": 0.9550861816075737,
+    "wait_ticks": 47.7782927821337,
+    "invehicle_ticks": 70.52933303655773,
+    "journey_boarded_ticks": 114.85976923194634,
+    "journey_all_ticks": 115.27454682459083,
+    "unserved_pct": 4.299747000755374,
+    "skip_rate_pct": 6.727777777777777,
+    "carried_past": 266.4
+   },
+   "skip_g1": {
+    "cv": 1.0613348270278682,
+    "wait_ticks": 90.55073828169772,
+    "invehicle_ticks": 76.8634698809652,
+    "journey_boarded_ticks": 134.66048185643953,
+    "journey_all_ticks": 155.8566749324231,
+    "unserved_pct": 15.014876841957255,
+    "skip_rate_pct": 19.425,
+    "carried_past": 455.2
+   }
+  },
+  "6": {
+   "timetable": {
+    "cv": 0.33392681407356,
+    "wait_ticks": 26.55398160005195,
+    "invehicle_ticks": 63.39788676140017,
+    "journey_boarded_ticks": 89.79563901134875,
+    "journey_all_ticks": 89.14123894309392,
+    "unserved_pct": 1.2794170408726413,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "012_shipped": {
+    "cv": 0.10480128687043018,
+    "wait_ticks": 29.169351593241856,
+    "invehicle_ticks": 64.08426838958299,
+    "journey_boarded_ticks": 90.87437556118489,
+    "journey_all_ticks": 91.71463536871951,
+    "unserved_pct": 2.402846021835212,
+    "skip_rate_pct": 0.0,
+    "carried_past": 0.0
+   },
+   "skip_g0": {
+    "cv": 1.6209379633136145,
+    "wait_ticks": 63.81289184636336,
+    "invehicle_ticks": 78.53932558716554,
+    "journey_boarded_ticks": 131.7554081551712,
+    "journey_all_ticks": 134.8110863448266,
+    "unserved_pct": 9.595242602645163,
+    "skip_rate_pct": 8.976388888888888,
+    "carried_past": 319.8
+   },
+   "skip_g0.25": {
+    "cv": 0.31147722851182813,
+    "wait_ticks": 42.21386427143378,
+    "invehicle_ticks": 69.38527666536488,
+    "journey_boarded_ticks": 108.06575729079464,
+    "journey_all_ticks": 108.60069745131402,
+    "unserved_pct": 4.3177066109240485,
+    "skip_rate_pct": 14.844444444444445,
+    "carried_past": 180.8
+   },
+   "skip_g0.5": {
+    "cv": 0.9973203274493215,
+    "wait_ticks": 44.82469965162782,
+    "invehicle_ticks": 76.65891913361578,
+    "journey_boarded_ticks": 117.27103585510588,
+    "journey_all_ticks": 118.2603791307668,
+    "unserved_pct": 4.214309265434086,
+    "skip_rate_pct": 8.947222222222221,
+    "carried_past": 308.4
+   },
+   "skip_g1": {
+    "cv": 0.8447210664483646,
+    "wait_ticks": 161.17058532003543,
+    "invehicle_ticks": 101.12173184074818,
+    "journey_boarded_ticks": 143.21838168939513,
+    "journey_all_ticks": 229.2019751432948,
+    "unserved_pct": 32.662507120196935,
+    "skip_rate_pct": 21.304166666666667,
+    "carried_past": 982.8
+   }
+  }
+ }
+}
