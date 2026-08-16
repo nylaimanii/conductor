@@ -119,40 +119,14 @@ function gridTexture() {
   return tex
 }
 
-// A soft pool of light under the scene, so the plane has a centre and falls
-// off rather than reading as an evenly lit sheet that simply stops.
-function poolTexture() {
-  const S = 512
-  const c = document.createElement('canvas')
-  c.width = S
-  c.height = S
-  const g = c.getContext('2d')
-  const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
-  grad.addColorStop(0, 'rgba(120,165,205,0.035)')
-  grad.addColorStop(0.45, 'rgba(90,130,170,0.015)')
-  grad.addColorStop(1, 'rgba(0,0,0,0)')
-  g.fillStyle = grad
-  g.fillRect(0, 0, S, S)
-  return new THREE.CanvasTexture(c)
-}
-
-export function buildPool(scene, radius) {
-  const geo = new THREE.PlaneGeometry(radius * 2, radius * 2)
-  geo.rotateX(-Math.PI / 2)
-  const mesh = new THREE.Mesh(
-    geo,
-    new THREE.MeshBasicMaterial({
-      map: poolTexture(),
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    })
-  )
-  mesh.position.y = 0.005
-  mesh.renderOrder = -1
-  scene.add(mesh)
-  return mesh
-}
+// There used to be a soft radial pool of light on the plane here, one per
+// system, brightest at the middle of the line and gone by the ends. It gave
+// the plane a centre for the old overhead survey shot. From a cab it is a
+// brightness gradient laid across the world with nothing physical behind it,
+// and because each side rides a different train the two cameras sit at
+// different distances from their own pool — so the two viewports read as
+// differently exposed when the exposure, the fog and the ground are in fact
+// all shared and identical. It was the only per-system thing in the lighting.
 
 export function buildGround(scene) {
   const geo = new THREE.PlaneGeometry(1400, 1400)
@@ -209,10 +183,20 @@ export function buildTrack(scene, stations, project) {
   // renders as black except where a highlight happens to land, and against a
   // near black ground the rails simply vanish. Half metal keeps a diffuse
   // component, so the ways read as two bright lines running to the horizon.
+  //
+  // The emissive is the floor under that. A rail's brightness otherwise
+  // depends entirely on how the key light happens to rake it, which changes
+  // with the direction the line is running — so the same rails read bright on
+  // one heading and disappear on another, and with two cameras on different
+  // parts of the line that looks like the two sides being lit differently. The
+  // rails are the perspective line the whole shot is built on; they are not
+  // allowed to depend on the compass.
   const railMat = new THREE.MeshStandardMaterial({
-    color: 0xb4c6d4,
-    roughness: 0.28,
-    metalness: 0.45,
+    color: 0xc6d6e2,
+    roughness: 0.25,
+    metalness: 0.35,
+    emissive: 0x33424f,
+    emissiveIntensity: 0.6,
   })
   const tieMat = new THREE.MeshStandardMaterial({
     color: 0x2e363d,
@@ -424,13 +408,17 @@ export function buildStations(scene, stations, project) {
   const n = stations.length
   const pts = stations.map((s) => project(s.x, s.y))
 
+  // Same reasoning as the massing: platforms are big surfaces passing close to
+  // the camera, so lighting them makes the frame's value depend on whether a
+  // station happens to be alongside. Dark concrete, and the strip does the
+  // work of saying a station is there.
   const concrete = new THREE.MeshStandardMaterial({
-    color: 0x2a3138,
+    color: 0x1c2229,
     roughness: 0.95,
     metalness: 0.0,
   })
   const canopyMat = new THREE.MeshStandardMaterial({
-    color: 0x161c22,
+    color: 0x0f1317,
     roughness: 0.9,
     metalness: 0.0,
   })
@@ -633,14 +621,18 @@ export function buildMassing(scene, stations, project) {
     }
   }
 
-  if (dropped) {
-    console.info(`massing: dropped ${dropped} blocks that fouled the line, kept ${boxes.length}`)
-  }
-
   const geo = new THREE.BoxGeometry(1, 1, 1)
   geo.translate(0, 0.5, 0)
+  // Nearly silhouette. Buildings are the largest lit surface in any frame and
+  // the one whose amount changes most as the camera moves, so how bright they
+  // are decides how much the frame's overall value swings with position. The
+  // two viewports ride different trains and are therefore always in different
+  // parts of the city; with the blocks lit, the denser side reads as a
+  // brighter exposure than the emptier one, which looks like the two sides
+  // being graded differently when the lighting is in fact identical. Dark
+  // enough and the city is a skyline instead of a light source.
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x0e1216,
+    color: 0x090b0e,
     roughness: 1.0,
     metalness: 0.0,
   })

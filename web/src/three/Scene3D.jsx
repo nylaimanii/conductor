@@ -15,7 +15,6 @@ import {
   buildContacts,
   buildRiders,
   buildLabel,
-  buildPool,
   buildStations,
   buildMassing,
   aimKey,
@@ -224,10 +223,14 @@ export default function Scene3D({ playing }) {
     // Orbit is expressed relative to the mount rather than to a fixed target,
     // because the target is a train travelling down a line. OrbitControls
     // assumes a stationary centre and fights a moving one.
-    // Close enough behind that the train fills the lower frame and the ties
-    // pass under it, low enough that the shot is down the line rather than
-    // onto it.
-    const HOME = { yaw: 0, pitch: 0.22, dist: 11 }
+    // Down at roughly the height of the car roof rather than above it, and
+    // close in. Height is what decides whether this is a ride or a diorama:
+    // looking down at the line puts the vanishing point near the top of the
+    // frame and fills the rest with ground, which reads as a model on a table.
+    // Almost level, the rails converge to a point near the middle of the frame
+    // and the whole lower half is track coming at you, which is the one strong
+    // perspective line that carries the motion.
+    const HOME = { yaw: 0, pitch: 0.1, dist: 8.5 }
     const orbit = { ...HOME, tYaw: HOME.yaw, tPitch: HOME.pitch, tDist: HOME.dist }
     resetRef.current = () => {
       orbit.tYaw = HOME.yaw
@@ -319,8 +322,6 @@ export default function Scene3D({ playing }) {
         buildLabel(group, d.line, project(a.x, a.y))
         buildLabel(group, d.line, project(b.x, b.y))
       }
-
-      buildPool(group, 90)
 
       return {
         docs,
@@ -611,7 +612,9 @@ export default function Scene3D({ playing }) {
           const fx = Math.cos(yaw)
           const fz = Math.sin(yaw)
           const back = orbit.dist * Math.cos(orbit.pitch)
-          const up = orbit.dist * Math.sin(orbit.pitch) + 1.6
+          // The mount sits at 0.9 and the car roof at 1.74, so this rides a
+          // little over the roof rather than well above it.
+          const up = orbit.dist * Math.sin(orbit.pitch) + 1.2
           // Dragging swings the mount point around the train; the camera goes
           // on looking down the line either way.
           const cy = Math.cos(orbit.yaw)
