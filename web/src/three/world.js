@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 // The 3D world. A dark ground plane, the lines as physical raised tracks laid
 // on it, and trains as simple lit volumes above them.
@@ -8,9 +9,18 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 // train transforms change per frame, so the per frame cost is a handful of
 // matrix writes rather than any geometry work.
 
-// World units per unit of sim coordinate space. The network spans roughly
-// 910 x 530 in sim space, so this puts it at about 114 x 66 units across.
-export const SCALE = 1 / 8
+// World units per unit of sim coordinate space.
+//
+// At an eighth, the L's stations land 3.94 units apart — every one of its
+// twenty three blocks the same length, and shorter than the train drawn on it.
+// That was survivable from above and wrong from a cab: platforms ran into each
+// other into one continuous colonnade, and a train permanently filled the
+// block it was in, so every pair of trains looked bunched whether they were or
+// not. At a fifth a block is 6.3 units, platforms stand apart, and the lit
+// stations become things you can count down the line — which is what actually
+// carries the argument, since the gap ahead differs between the two runs by
+// about four blocks against six.
+export const SCALE = 1 / 5
 
 // Monochrome. No line colours anywhere: they read as a kids diagram and fight
 // the look. Lines are told apart by a quiet letter at each terminal instead.
@@ -34,28 +44,39 @@ export function makeProjector(bounds) {
   return (x, y) => new THREE.Vector3((x - cx) * SCALE, 0, (y - cy) * SCALE)
 }
 
+// Stand the key light over a given point on the plane, keeping its direction
+// fixed. Called once per viewport, just before that viewport renders.
+export function aimKey(key, x, z) {
+  key.position.set(x + 70, 120, z + 50)
+  key.target.position.set(x, 0, z)
+  key.target.updateMatrixWorld()
+}
+
 export function buildLights(scene) {
   // Very low ambient: the scene is near black and the trains carry the light.
   scene.add(new THREE.AmbientLight(0x3a444d, 0.3))
 
   // Key, from high and to one side, casting the soft shadows onto the plane.
   const key = new THREE.DirectionalLight(0xdfeaf5, 1.9)
-  key.position.set(70, 120, 50)
   key.castShadow = true
   key.shadow.mapSize.set(2048, 2048)
   key.shadow.camera.near = 1
-  key.shadow.camera.far = 520
-  // Wide enough to hold both systems at once. They stand far enough apart that
-  // neither is ever in the other's shot, and a frustum sized for one of them
-  // leaves the other with no shadows at all. Kept as tight as that separation
-  // allows, because every unit of slack here is spent out of the depth map.
-  key.shadow.camera.left = -50
-  key.shadow.camera.right = 50
-  key.shadow.camera.top = 155
-  key.shadow.camera.bottom = -155
+  key.shadow.camera.far = 400
+  // Sized for one system, not for both. The renderer redraws the shadow map on
+  // every render call and there are two of them per frame, one per viewport,
+  // so the light can be walked over to whichever line is being rendered and
+  // the frustum only ever has to cover that one. A box wide enough to hold
+  // both spends its whole depth map on the empty ground between them.
+  key.shadow.camera.left = -80
+  key.shadow.camera.right = 80
+  key.shadow.camera.top = 105
+  key.shadow.camera.bottom = -105
   key.shadow.bias = -0.0012
   key.shadow.radius = 4
   scene.add(key)
+  // The target has to be in the scene for its world matrix to be updated.
+  scene.add(key.target)
+  aimKey(key, 0, 0)
 
   // Rim, from low and behind, cool and dim. This is what gives the volumes an
   // edge against the dark rather than dissolving into it.
@@ -268,12 +289,14 @@ export function buildTrains(scene, count) {
   // and since the trains are the only bright thing in the frame their
   // silhouette is doing most of the work. Segments kept low: the bevel only
   // has to catch the rim light, not survive a close inspection.
-  // The vehicles are the subject, not details on a line. Sized so a train is
-  // roughly five times the width of the track it sits on and most of the gap
-  // between two stations, which is what makes a pair of them touching read as
-  // bunching from across the room.
-  const geo = new RoundedBoxGeometry(4.0, 1.35, 1.9, 5, 0.4)
-  geo.translate(0, 0.98, 0)
+  //
+  // Two fifths of a block long. It used to be a whole block, sized so that a
+  // pair of them touching read as bunching from across the room, but from a
+  // cab that reads as bunching whether or not there is any: a train that fills
+  // its block is never more than a block from looking joined to the next one.
+  // A real train is about a fifth of the distance between two stops on the L.
+  const geo = new RoundedBoxGeometry(2.6, 1.2, 1.7, 5, 0.34)
+  geo.translate(0, 0.9, 0)
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.trainBody,
     emissive: COLORS.trainEmissive,
@@ -300,7 +323,7 @@ export function buildTrains(scene, count) {
 // sitting on the plane rather than floating over it. Costs one instanced draw
 // and does not depend on the shadow map resolution.
 export function buildContacts(scene, count) {
-  const geo = new THREE.CircleGeometry(2.3, 20)
+  const geo = new THREE.CircleGeometry(1.5, 20)
   geo.rotateX(-Math.PI / 2)
   const mat = new THREE.MeshBasicMaterial({
     color: 0x000000,
@@ -316,11 +339,17 @@ export function buildContacts(scene, count) {
   return mesh
 }
 
-// Riders: small quiet volumes beside a platform. Sparse on purpose, capped
-// low, no labels. If in doubt there are fewer of them.
+// Riders: a body and a head, merged so a platform full of them costs one draw.
+// Small, dark and quiet. The crowd is a texture, never a count.
 export function buildRiders(scene, count) {
-  const geo = new RoundedBoxGeometry(0.3, 0.8, 0.3, 2, 0.1)
-  geo.translate(0, 0.4, 0)
+  const body = new RoundedBoxGeometry(0.26, 0.56, 0.2, 2, 0.07)
+  body.translate(0, 0.28, 0)
+  // Non-indexed to match the body: RoundedBoxGeometry unindexes itself, and
+  // mergeGeometries refuses a mix and hands back null rather than throwing, so
+  // the failure surfaces as a black frame much later.
+  const head = new THREE.SphereGeometry(0.11, 8, 6).toNonIndexed()
+  head.translate(0, 0.67, 0)
+  const geo = mergeGeometries([body, head])
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.rider,
     roughness: 0.9,
@@ -333,6 +362,237 @@ export function buildRiders(scene, count) {
   return mesh && scene.add(mesh), mesh
 }
 
+
+// The heading of the line at a station, as a unit vector in world space.
+// Averaged across the joint, so a platform at a corner sits square to the
+// bisector rather than to whichever segment happened to be asked for.
+function headingAt(pts, i) {
+  const a = pts[Math.max(0, i - 1)]
+  const b = pts[Math.min(pts.length - 1, i + 1)]
+  const dx = b.x - a.x
+  const dz = b.z - a.z
+  const len = Math.hypot(dx, dz) || 1
+  return [dx / len, dz / len]
+}
+
+// Shorter than a block, so platforms stand apart as separate places instead of
+// running into one another down the whole line.
+const PLAT_LEN = 4.6
+const PLAT_W = 2.8
+const PLAT_H = 0.5
+// Inner edge, clear of the ballast and of a train's flank. A train is 1.9
+// across sitting 1.3 off the centreline, so its outer face is at 2.25.
+const PLAT_IN = 2.45
+const PLAT_MID = PLAT_IN + PLAT_W / 2
+const CANOPY_Y = 2.9
+
+// Stations as places rather than dots: a platform down each side of the two
+// ways, a canopy over each on two columns, and a lit strip under the canopy.
+// The strip is the point. In a scene where nothing else emits, a station
+// becomes a pool of light the ride approaches, passes through and leaves, and
+// that is what makes a station an event rather than a marker.
+//
+// Everything is instanced by part, so twenty four stations are five draws.
+export function buildStations(scene, stations, project) {
+  const n = stations.length
+  const pts = stations.map((s) => project(s.x, s.y))
+
+  const concrete = new THREE.MeshStandardMaterial({
+    color: 0x2a3138,
+    roughness: 0.95,
+    metalness: 0.0,
+  })
+  const canopyMat = new THREE.MeshStandardMaterial({
+    color: 0x161c22,
+    roughness: 0.9,
+    metalness: 0.0,
+  })
+  // Emissive only. Adding forty eight real lights to light forty eight
+  // platforms is not a trade worth making; the strip reads as the source and
+  // the glow below stands in for its spill.
+  const stripMat = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    emissive: 0xbcd4e6,
+    emissiveIntensity: 1.5,
+    roughness: 1.0,
+  })
+  const spillMat = new THREE.MeshBasicMaterial({
+    color: 0x7f9db8,
+    transparent: true,
+    opacity: 0.14,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })
+
+  const sides = n * 2
+  const mk = (geo, mat, count, shadow) => {
+    const m = new THREE.InstancedMesh(geo, mat, count)
+    m.receiveShadow = !!shadow
+    m.castShadow = !!shadow
+    scene.add(m)
+    return m
+  }
+
+  const slab = mk(new THREE.BoxGeometry(PLAT_LEN, PLAT_H, PLAT_W), concrete, sides, true)
+  const canopy = mk(
+    new THREE.BoxGeometry(PLAT_LEN, 0.14, PLAT_W + 0.4),
+    canopyMat,
+    sides,
+    true
+  )
+  const column = mk(new THREE.BoxGeometry(0.18, CANOPY_Y - PLAT_H, 0.18), concrete, sides * 2, true)
+  const strip = mk(new THREE.BoxGeometry(PLAT_LEN - 0.8, 0.07, 0.22), stripMat, sides, false)
+  const spillGeo = new THREE.PlaneGeometry(PLAT_LEN, PLAT_W)
+  spillGeo.rotateX(-Math.PI / 2)
+  const spill = mk(spillGeo, spillMat, sides, false)
+  spill.renderOrder = 2
+
+  const d = new THREE.Object3D()
+  let si = 0
+  let ci = 0
+  // Where a rider can stand, worked out once. Per frame the scene only decides
+  // how many of these are occupied.
+  const slots = []
+
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]
+    const [hx, hz] = headingAt(pts, i)
+    const yaw = -Math.atan2(hz, hx)
+    // Left hand normal of the heading, the same convention the ways use.
+    const nx = -hz
+    const nz = hx
+
+    for (const side of [-1, 1]) {
+      const cx = p.x + nx * side * PLAT_MID
+      const cz = p.z + nz * side * PLAT_MID
+
+      d.rotation.set(0, yaw, 0)
+      d.scale.setScalar(1)
+
+      d.position.set(cx, PLAT_H / 2, cz)
+      d.updateMatrix()
+      slab.setMatrixAt(si, d.matrix)
+
+      d.position.set(cx, CANOPY_Y, cz)
+      d.updateMatrix()
+      canopy.setMatrixAt(si, d.matrix)
+
+      d.position.set(cx, CANOPY_Y - 0.12, cz)
+      d.updateMatrix()
+      strip.setMatrixAt(si, d.matrix)
+
+      d.position.set(cx, PLAT_H + 0.012, cz)
+      d.updateMatrix()
+      spill.setMatrixAt(si, d.matrix)
+
+      // Two columns, set in from the platform ends and standing on its outer
+      // edge so nothing blocks the view along the train.
+      for (const end of [-1, 1]) {
+        const ox = hx * end * (PLAT_LEN / 2 - 0.7) + nx * side * (PLAT_W / 2 - 0.3)
+        const oz = hz * end * (PLAT_LEN / 2 - 0.7) + nz * side * (PLAT_W / 2 - 0.3)
+        d.position.set(cx + ox, PLAT_H + (CANOPY_Y - PLAT_H) / 2, cz + oz)
+        d.updateMatrix()
+        column.setMatrixAt(ci++, d.matrix)
+      }
+
+      // Riders queue along the platform, a little back from the edge, facing
+      // the track they are waiting for.
+      for (let k = 0; k < RIDER_SLOTS_PER_SIDE; k++) {
+        const along = (k / (RIDER_SLOTS_PER_SIDE - 1) - 0.5) * (PLAT_LEN - 1.6)
+        const jitter = (((i * 7 + k * 13 + (side + 1) * 5) % 9) / 9 - 0.5) * 0.7
+        const back = 0.35 + (((i * 3 + k * 5) % 5) / 5) * 0.5
+        slots.push({
+          x: cx + hx * (along + jitter) - nx * side * back,
+          z: cz + hz * (along + jitter) - nz * side * back,
+          // Facing across to the platform edge.
+          yaw: -Math.atan2(-nz * side, -nx * side),
+        })
+      }
+      si++
+    }
+  }
+
+  for (const m of [slab, canopy, column, strip, spill]) m.instanceMatrix.needsUpdate = true
+  return slots
+}
+
+// Riders per platform side, so eight standing places at a station. The cap is
+// what keeps a crowd a texture: a platform that is full looks full, and there
+// is never a number to read off it.
+export const RIDER_SLOTS_PER_SIDE = 4
+export const RIDER_SLOTS_PER_STATION = RIDER_SLOTS_PER_SIDE * 2
+
+// Dark massing along the sides of the line. Not buildings: blocks, unlit
+// except for what the sky bounce gives them, there so the ride has a world at
+// its edges instead of a void above the horizon. Deterministic, because both
+// systems have to stand in the same city for the comparison to be about the
+// trains.
+export function buildMassing(scene, stations, project) {
+  const pts = stations.map((s) => project(s.x, s.y))
+
+  // A hash rather than a random: reloading must not redraw the skyline, and
+  // the two systems must get the same one.
+  const rand = (n) => {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453
+    return x - Math.floor(x)
+  }
+
+  const boxes = []
+  let seed = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i]
+    const b = pts[i + 1]
+    const len = Math.hypot(b.x - a.x, b.z - a.z)
+    if (len < 1e-6) continue
+    const hx = (b.x - a.x) / len
+    const hz = (b.z - a.z) / len
+    const nx = -hz
+    const nz = hx
+
+    for (let t = 1.2; t < len; t += 2.4 + rand(seed++) * 2.2) {
+      for (const side of [-1, 1]) {
+        for (const row of [0, 1]) {
+          seed++
+          if (rand(seed) < 0.28) continue
+          const out = 9 + row * 9 + rand(seed + 1) * 6
+          const w = 2.4 + rand(seed + 2) * 4.5
+          const dpt = 2.4 + rand(seed + 3) * 4.5
+          const h = 3 + rand(seed + 4) ** 2.2 * 22
+          boxes.push({
+            x: a.x + hx * t + nx * side * out,
+            z: a.z + hz * t + nz * side * out,
+            w,
+            d: dpt,
+            h,
+            yaw: -Math.atan2(hz, hx) + (rand(seed + 5) - 0.5) * 0.5,
+          })
+        }
+      }
+    }
+  }
+
+  const geo = new THREE.BoxGeometry(1, 1, 1)
+  geo.translate(0, 0.5, 0)
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x0e1216,
+    roughness: 1.0,
+    metalness: 0.0,
+  })
+  const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, boxes.length))
+  const d = new THREE.Object3D()
+  boxes.forEach((b, i) => {
+    d.position.set(b.x, 0, b.z)
+    d.rotation.set(0, b.yaw, 0)
+    d.scale.set(b.w, b.h, b.d)
+    d.updateMatrix()
+    mesh.setMatrixAt(i, d.matrix)
+  })
+  mesh.instanceMatrix.needsUpdate = true
+  mesh.castShadow = false
+  mesh.receiveShadow = true
+  scene.add(mesh)
+  return mesh
+}
 
 // A quiet letter identifying a line, drawn into a texture and hung as a sprite
 // so it always faces the camera and stays legible from any orbit angle. This

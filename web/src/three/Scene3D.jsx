@@ -15,7 +15,11 @@ import {
   buildRiders,
   buildLabel,
   buildPool,
+  buildStations,
+  buildMassing,
+  aimKey,
   wayOffset,
+  RIDER_SLOTS_PER_STATION,
 } from './world.js'
 
 // The scene. A physical world seen from outside, orbited freely.
@@ -27,54 +31,130 @@ import {
 // Stations on the L sit about four world units apart, which is one train
 // length, so the rate that read as streaming from an overhead survey is a blur
 // from fifteen units behind the cab. Slow enough that a station is an event
-// and the ties still flick past.
-const TICKS_PER_SEC = 10
-// Riders are deliberately sparse. A platform shows at most this many, with no
-// count anywhere. The crowd is a texture, not a readout.
-const RIDERS_PER_STATION = 4
+// and the ties still flick past. The window is 93 entries, so this puts one
+// circuit of the line at about fifteen seconds.
+const TICKS_PER_SEC = 6
+// Riders waiting per figure shown. Inside the window a platform holds one
+// rider at the median and fifteen at its worst, and a full platform is eight
+// figures, so a figure is two people. Two thirds of the day sits at nought or
+// one, which is what makes a platform that has filled up read as unusual. No
+// count appears anywhere.
+const RIDERS_PER_FIGURE = 2
 // The line the policy was trained on, and the one the comparison runs.
 const COMPARE_LINE = 'L'
-// Both sides ride the same train index, so the two views stay comparable.
-const MOUNT_INDEX = 0
 
-// How far ahead the camera aims, in station indices along the circuit, and how
-// much each sample counts. The near samples dominate so the shot stays down
-// the track the train is actually on; the far ones are what make the camera
-// lean into a corner a beat before the train reaches it instead of discovering
-// it. Aiming at the current segment alone is what made the L read as an
-// elevated three quarter shot: the line turns ninety degrees twice, and a
-// camera that re-aims every segment never settles into looking down anything.
-const AIM = [
-  [1.0, 0.42],
-  [2.0, 0.26],
-  [3.2, 0.16],
-  [4.6, 0.1],
-  [6.5, 0.06],
-]
-// Seconds-ish constant on the camera yaw. Low enough that the camera trails
-// the train around a corner and catches up after, rather than snapping to the
-// new segment the instant the train crosses the joint.
+// The window, in the run's own tick numbers, computed by sim on this episode:
+// t 716 to 900, exactly one loop of the L at its 184 tick loop time.
+//
+// This is not a window where the two runs merely differ. The learned run is
+// tighter on every single tick inside it and the cv gap never falls below
+// 0.095. That matters because the policy does not lead from the start: between
+// t 100 and t 300 the timetable is tighter on one hundred percent of ticks,
+// and across the whole first half the learned run leads on under a quarter of
+// them. Any window chosen by eye from the front of the day is a window of the
+// policy losing. Picking one by eye is how this went wrong the first time.
+//
+// Held as tick numbers rather than array indices because the run files are
+// subsampled: t steps by two, so t 716 is the 358th entry today and need not
+// be tomorrow.
+const LOOP_FROM_T = 716
+const LOOP_TO_T = 900
+
+// First and last entry inside the window. Both ends are inclusive, so the loop
+// runs one full circuit and rejoins itself.
+const windowOf = (doc) => {
+  const ts = doc.ticks
+  let from = 0
+  let to = ts.length - 1
+  while (from < to && ts[from].t < LOOP_FROM_T) from++
+  while (to > from && ts[to].t > LOOP_TO_T) to--
+  return { from, to }
+}
+
+// Which train a side's camera rides: the one that spends the loop most closed
+// up on the train in front. Decided once, from the whole window, rather than
+// per frame. Per frame the tightest train changes every three to eight ticks,
+// which at this playback rate is a cut every half second, and no amount of
+// hysteresis rescues that on the learned side where all seven trains sit
+// within a hundredth of each other. Over the window there is a clear worst on
+// the timetable side, it is worst for the entire window, and the camera never
+// has to move.
+function worstSpaced(doc) {
+  const { from, to } = windowOf(doc)
+  let pick = 0
+  let lowest = Infinity
+  for (let i = 0; i < doc.ticks[0].trains.length; i++) {
+    let acc = 0
+    let n = 0
+    for (let k = from; k <= to; k++) {
+      const r = doc.ticks[k].trains[i].obs?.headway_ahead_ratio
+      if (typeof r === 'number') {
+        acc += r
+        n++
+      }
+    }
+    const mean = n ? acc / n : Infinity
+    if (mean < lowest) {
+      lowest = mean
+      pick = i
+    }
+  }
+  return pick
+}
+
+// Where the camera looks: a real point on the line this far ahead, in blocks.
+// Not a direction worked out from samples ahead — a place on the track.
+//
+// Aiming and standing have to be separated, and conflating them is what went
+// wrong twice. A single smoothed heading used for both means the lean into a
+// corner also swings the camera sideways: eleven units back, a forty degree
+// lean parks it seven units off the centreline, which on this line is directly
+// over the platforms, looking at canopy roofs with no track in frame at all.
+// So the camera stands behind its train along the train's own heading, damped
+// so a corner is eased rather than cut, and looks at the track ahead, damped
+// separately. On a straight the two coincide. At a corner the camera sits
+// behind the train and looks into the turn, which is what riding one looks
+// like.
+const LOOK_AHEAD = 2.2
+// Seconds-ish constants. The yaw is slow enough that the camera trails the
+// train around a corner and catches up after, rather than snapping to the new
+// segment the instant the train crosses the joint. The look point is quicker,
+// because that is the lean and it should arrive before the train does.
 const YAW_LAG = 1.7
+const LOOK_LAG = 2.4
+// How far the camera is allowed to fall behind its train, in world units.
+// About half a train length of give.
+const MAX_SLIP = 1.4
 
 // Shortest signed way from angle a to angle b.
 const wrapPi = (d) => ((((d + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI
 
 // What the scene is doing, in one sentence. Reads the same state the visuals
 // are already showing, so the line and the world can never disagree.
+// An even seven trains sit at a third of the gap ahead of them. The runs put
+// the baseline's fifth percentile at 0.24 and the policy's at 0.29, so a
+// quarter and a bit is where the two actually part company: below it, twenty
+// percent of the timetable day and none of the learned one. Read at 0.18 it
+// fired on a handful of ticks in the whole run and the sentence never came up
+// at all.
+const TIGHT = 0.26
+
 function describe(systems) {
   if (!systems.length) return ''
   const [timetable, learned] = systems
-  const held = learned?.last?.trains.filter((t) => t.holding).length || 0
-  if (held > 0) return 'this train is holding to let the gap behind close.'
+  // The sentence says "this train", so it has to mean the train the camera is
+  // on, not any train anywhere in the run.
+  const ridden = (sys) => sys?.last?.trains[sys.mountIndex]
 
-  // An even seven trains sit at a third of the gap ahead of them. The runs put
-  // the baseline's fifth percentile at 0.24 and the policy's at 0.29, so a
-  // quarter and a bit is where the two actually part company: below it, twenty
-  // percent of the timetable day and none of the learned one. Read at 0.18 it
-  // fired on a handful of ticks in the whole run and the sentence never came
-  // up at all.
+  if (ridden(learned)?.holding) return 'this train is holding to let the gap behind close.'
+
+  const front = ridden(timetable)?.obs?.headway_ahead_ratio
+  if (typeof front === 'number' && front < TIGHT) {
+    return 'the timetable train has closed right up on the one in front.'
+  }
+
   const tight = (sys) =>
-    sys?.last?.trains.filter((t) => (t.obs?.headway_ahead_ratio ?? 1) < 0.26).length || 0
+    sys?.last?.trains.filter((t) => (t.obs?.headway_ahead_ratio ?? 1) < TIGHT).length || 0
   const bunched = tight(timetable)
   if (bunched >= 2) {
     return `${bunched === 2 ? 'two' : 'three'} trains are bunched together on the timetable side.`
@@ -138,7 +218,7 @@ export default function Scene3D({ playing }) {
     // Close enough behind that the train fills the lower frame and the ties
     // pass under it, low enough that the shot is down the line rather than
     // onto it.
-    const HOME = { yaw: 0, pitch: 0.24, dist: 15 }
+    const HOME = { yaw: 0, pitch: 0.22, dist: 11 }
     const orbit = { ...HOME, tYaw: HOME.yaw, tPitch: HOME.pitch, tDist: HOME.dist }
     resetRef.current = () => {
       orbit.tYaw = HOME.yaw
@@ -171,22 +251,22 @@ export default function Scene3D({ playing }) {
     el.addEventListener('pointercancel', onUp)
     el.addEventListener('wheel', onWheel, { passive: false })
 
-    buildLights(scene)
+    const key = buildLights(scene)
     buildGround(scene)
 
     let raf = 0
     let disposed = false
     const clock = new THREE.Clock()
-    // ?t=250 starts the clock partway through the day. Nothing in the product
-    // reads it; it exists so a still can be taken of a named moment instead of
+// ?t=380 starts the clock on a named entry. Nothing in the product reads
+    // it; it exists so a still can be taken of a chosen moment instead of
     // whatever moment a headless browser happened to stop on.
-    let head = Number(new URLSearchParams(location.search).get('t')) || 0
+    const seeded = Number(new URLSearchParams(location.search).get('t')) || 0
+    let head = seeded
     let narrate = 0
-    const state = { systems: [] }
+    const state = { systems: [], window: { from: 0, to: 1 } }
 
     const dummy = new THREE.Object3D()
     const COL = new THREE.Color()
-    const AIM_PT = new THREE.Vector3()
     const HERE = new THREE.Vector3()
     const LEAD = new THREE.Vector3()
     const WAY = new THREE.Vector3()
@@ -218,8 +298,11 @@ export default function Scene3D({ playing }) {
 
       let trainCount = 0
       let stationCount = 0
+      let slots = []
       for (const d of docs) {
+        buildMassing(group, d.stations, project)
         buildTrack(group, d.stations, project)
+        slots = slots.concat(buildStations(group, d.stations, project))
         trainCount += d.ticks[0].trains.length
         stationCount += d.stations.length
         const a = d.stations[0]
@@ -234,12 +317,18 @@ export default function Scene3D({ playing }) {
         docs,
         project,
         group,
-        // Camera yaw, damped. Held per system because each side rides its own
-        // train and the two are rarely at the same place on the line.
+        // Each side rides its own worst-spaced train, so the two viewports are
+        // usually looking at different places on the line. That is the point:
+        // the argument belongs in the middle of both frames, not up the track
+        // in one of them.
+        mountIndex: worstSpaced(docs[0]),
+        // Camera yaw, damped. Held per system for the same reason.
         camYaw: null,
         trains: buildTrains(group, trainCount),
         contacts: buildContacts(group, trainCount),
-        riders: buildRiders(group, stationCount * RIDERS_PER_STATION),
+        // Standing places, worked out once with the platforms they belong to.
+        slots,
+        riders: buildRiders(group, stationCount * RIDER_SLOTS_PER_STATION),
       }
     }
 
@@ -257,13 +346,16 @@ export default function Scene3D({ playing }) {
       // one of them, so they no longer share a frame and no longer have to be
       // arranged for one. They are pushed apart by more than the fog reaches
       // instead: whichever line a camera is riding, the other one is not in
-      // its shot at all. The L is only about sixty units end to end, so the
-      // nearest the two ever come is well past where the fog closes.
-      const gap = 210
+      // its shot at all. The L is about a hundred and five units end to end, so
+      // the nearest the two ever come is a hundred and forty five, well past
+      // where the fog closes at a hundred and thirty.
+      const gap = 250
       state.systems = [
         buildSystem([left], project, 0, -gap / 2),
         buildSystem([right], project, 0, gap / 2),
       ]
+      state.window = windowOf(left)
+      if (!seeded) head = state.window.from
       setReady(true)
     }
 
@@ -273,8 +365,19 @@ export default function Scene3D({ playing }) {
 
       if (state.systems.length) {
         if (playingRef.current) head += dt * TICKS_PER_SEC
-        const n = state.systems[0].docs[0].ticks.length
-        if (head >= n) head -= n
+        const { from, to } = state.window
+        if (head >= to) {
+          // Back to the top of the window, not to the top of the day. The
+          // window is one circuit of the line, so the trains are close to
+          // where they began and the seam is nearly invisible; the cameras cut
+          // with them rather than swinging round to find their train.
+          head -= to - from
+          for (const sys of state.systems) {
+            sys.camYaw = null
+            sys.follow = null
+            sys.look = null
+          }
+        }
 
         // One head for every system, so the comparison is the same moment of
         // the same day on both sides.
@@ -329,45 +432,48 @@ export default function Scene3D({ playing }) {
                 COL.setRGB(1 - close * 0.1, 1 - close * 0.34, 1 - close * 0.52)
               )
 
-              // The train this side's camera rides. Its aim is a weighted mean
-              // of where the line will be over the next several stations, not
-              // where this segment points.
-              if (tix === MOUNT_INDEX) {
+              // The train this side's camera rides. Where the camera stands
+              // comes from this train's own heading; where it looks comes from
+              // the track ahead of it. The two are damped separately.
+              if (tix === sys.mountIndex) {
                 at(sys, s2, tr.pos, HERE)
-                AIM_PT.set(0, 0, 0)
-                for (const [d, wt] of AIM) {
-                  AIM_PT.addScaledVector(at(sys, s2, tr.pos + d * tr.dir, LEAD), wt)
-                }
-                AIM_PT.sub(HERE)
-                // Sitting on the buffers every sample lands on the terminal and
-                // the mean collapses onto the train, which has no direction in
-                // it. Hold the last heading until the train has a new one.
-                if (AIM_PT.lengthSq() > 0.36) sys.aim = Math.atan2(AIM_PT.z, AIM_PT.x)
                 // Riding the same way the train is on, not the centreline, so
                 // the track under the camera is the track under the train.
                 sys.mount = { x: HERE.x + WAY.x, y: 0.9, z: HERE.z + WAY.z }
+                sys.heading = Math.atan2(hz, hx)
+                // The place on the line to look at. Clamped at a terminal, so
+                // arriving at the end of the line means looking at the end of
+                // the line rather than at somewhere the track doubles back to.
+                at(sys, s2, tr.pos + LOOK_AHEAD * tr.dir, LEAD)
+                sys.target = { x: LEAD.x + WAY.x, z: LEAD.z + WAY.z }
               }
               ti++
             }
 
+            // Riders stand on the platforms, in places fixed when the platform
+            // was built. All that changes per frame is how many are occupied,
+            // so a crowd grows and drains in place rather than reshuffling.
             for (let i = 0; i < s2.stations.length; i++) {
-              const st = s2.stations[i]
-              const w = sys.project(st.x, st.y)
-              const show = Math.min(RIDERS_PER_STATION, Math.round((s2.waiting[i] || 0) / 6))
-              for (let k = 0; k < RIDERS_PER_STATION; k++) {
-                if (k < show) {
-                  // Clear of the bed. Two ways make the permanent way four and
-                  // a half units across, and the old ring put riders standing
-                  // between the rails. Still a ring, still a placeholder: the
-                  // platforms they belong on are the next piece of work.
-                  const a = (k / RIDERS_PER_STATION) * Math.PI * 2 + i
-                  dummy.position.set(w.x + Math.cos(a) * 3.4, 0.2, w.z + Math.sin(a) * 3.4)
+              const show = Math.min(
+                RIDER_SLOTS_PER_STATION,
+                Math.round((s2.waiting[i] || 0) / RIDERS_PER_FIGURE)
+              )
+              const base = i * RIDER_SLOTS_PER_STATION
+              const half = RIDER_SLOTS_PER_STATION / 2
+              for (let k = 0; k < RIDER_SLOTS_PER_STATION; k++) {
+                // Alternating sides, so a platform and the one facing it fill
+                // together. Taken in order the near side would fill completely
+                // before a single figure appeared opposite.
+                const slot = sys.slots[base + (k % 2) * half + (k >> 1)]
+                if (k < show && slot) {
+                  dummy.position.set(slot.x, 0.5, slot.z)
+                  dummy.rotation.set(0, slot.yaw, 0)
                   dummy.scale.setScalar(1)
                 } else {
                   dummy.position.set(0, -50, 0)
+                  dummy.rotation.set(0, 0, 0)
                   dummy.scale.setScalar(0.0001)
                 }
-                dummy.rotation.set(0, 0, 0)
                 dummy.updateMatrix()
                 sys.riders.setMatrixAt(ri, dummy.matrix)
                 ri++
@@ -413,19 +519,57 @@ export default function Scene3D({ playing }) {
       state.systems.forEach((sys, i) => {
         const cam = cams[i]
         const m = sys.mount
-        if (m && sys.aim != null) {
-          // Trail the aim rather than take it. The whole shot is the track
-          // receding, and a yaw that arrives at the new heading on the same
-          // frame the train does turns every corner into a cut.
-          const err = sys.camYaw == null ? 0 : wrapPi(sys.aim - sys.camYaw)
+        if (m && sys.heading != null) {
+          // Trail the heading rather than take it. The whole shot is the track
+          // receding, and a camera that arrives behind the new segment on the
+          // same frame the train does turns every corner into a cut.
+          const err = sys.camYaw == null ? 0 : wrapPi(sys.heading - sys.camYaw)
           // A turnaround is a cut, not a pan. Trailing through a hundred and
           // eighty degrees means watching your own train drive past the lens
           // for a second and a half, which reads as the camera coming loose.
-          if (sys.camYaw == null || Math.abs(err) > 2.0) sys.camYaw = sys.aim
+          const jump = sys.camYaw == null || Math.abs(err) > 2.0
+          if (jump) sys.camYaw = sys.heading
           else sys.camYaw += err * (1 - Math.exp(-dt * YAW_LAG))
 
-          const fx = Math.cos(sys.camYaw)
-          const fz = Math.sin(sys.camYaw)
+          // The look point eases separately, and cuts with the camera.
+          if (!sys.look || jump) sys.look = new THREE.Vector3(sys.target.x, 0, sys.target.z)
+          const lk = 1 - Math.exp(-dt * LOOK_LAG)
+          sys.look.x += (sys.target.x - sys.look.x) * lk
+          sys.look.z += (sys.target.z - sys.look.z) * lk
+
+          // Lag. The camera is a body being towed, not a rig bolted to the
+          // roof: when the train pulls out of a station it gets away, and when
+          // it stops or holds the camera creeps up on it. Capped, so a long
+          // fast straight cannot walk the train out of the frame.
+          if (!sys.follow) sys.follow = new THREE.Vector3(m.x, m.y, m.z)
+          const fk = 1 - Math.exp(-dt * 3.2)
+          sys.follow.x += (m.x - sys.follow.x) * fk
+          sys.follow.y += (m.y - sys.follow.y) * fk
+          sys.follow.z += (m.z - sys.follow.z) * fk
+          const slipX = m.x - sys.follow.x
+          const slipZ = m.z - sys.follow.z
+          const slip = Math.hypot(slipX, slipZ)
+          if (slip > MAX_SLIP) {
+            sys.follow.x = m.x - (slipX / slip) * MAX_SLIP
+            sys.follow.z = m.z - (slipZ / slip) * MAX_SLIP
+          }
+          const px = sys.follow.x
+          const py = sys.follow.y
+          const pz = sys.follow.z
+
+          // Sway and bob. Two frequencies that do not divide into each other,
+          // so the motion never settles into a pulse, and out of phase between
+          // the two sides so the pair does not read as one mechanism. A few
+          // pixels at this distance: enough that the shot is alive, not enough
+          // to notice as an effect.
+          const tt = clock.elapsedTime + i * 3.1
+          const bob = Math.sin(tt * 2.3) * 0.075 + Math.sin(tt * 3.71) * 0.045
+          const sway = Math.sin(tt * 1.35) * 0.13
+          const wobble = Math.sin(tt * 0.93) * 0.006
+
+          const yaw = sys.camYaw + wobble
+          const fx = Math.cos(yaw)
+          const fz = Math.sin(yaw)
           const back = orbit.dist * Math.cos(orbit.pitch)
           const up = orbit.dist * Math.sin(orbit.pitch) + 1.6
           // Dragging swings the mount point around the train; the camera goes
@@ -434,11 +578,18 @@ export default function Scene3D({ playing }) {
           const sy = Math.sin(orbit.yaw)
           const bx = -(fx * cy - fz * sy)
           const bz = -(fx * sy + fz * cy)
-          cam.position.set(m.x + bx * back, m.y + up, m.z + bz * back)
-          cam.lookAt(m.x + fx * 26, m.y + 1.3, m.z + fz * 26)
+          cam.position.set(
+            px + bx * back - fz * sway,
+            py + up + bob,
+            pz + bz * back + fx * sway
+          )
+          cam.lookAt(sys.look.x, py + 1.1, sys.look.z)
         }
         cam.aspect = halfW / H
         cam.updateProjectionMatrix()
+        // Walk the key light over to this system before drawing it, so its
+        // shadow frustum only has to cover one line.
+        aimKey(key, sys.group.position.x, sys.group.position.z)
         const x = i === 0 ? 0 : halfW
         renderer.setViewport(x, 0, halfW, H)
         renderer.setScissor(x, 0, halfW, H)
