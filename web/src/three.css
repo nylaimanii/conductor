@@ -1,130 +1,4 @@
-/* The 3D stage carries the whole screen. Nothing else is on it. */
-.stage3d {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background: #07080a;
-}
 
-.scene3d,
-.scene3d-host {
-  position: absolute;
-  inset: 0;
-}
-
-.scene3d-host canvas {
-  display: block;
-  touch-action: none;
-  cursor: grab;
-}
-
-.scene3d-host canvas:active {
-  cursor: grabbing;
-}
-
-/* The only control. */
-.only-control {
-  position: absolute;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  z-index: 3;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  padding: 8px 22px;
-  border-radius: 999px;
-  border: 1px solid rgba(170, 195, 215, 0.22);
-  background: rgba(14, 18, 22, 0.55);
-  color: #c3d4e2;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-}
-
-.only-control:hover {
-  border-color: rgba(170, 195, 215, 0.45);
-}
-
-.scene3d-reset {
-  position: absolute;
-  right: 22px;
-  bottom: 26px;
-  z-index: 3;
-  font-size: 10px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(170, 195, 215, 0.18);
-  background: rgba(14, 18, 22, 0.5);
-  color: #8ea3b5;
-  cursor: pointer;
-}
-
-.corner-views {
-  position: absolute;
-  top: 18px;
-  right: 22px;
-  z-index: 3;
-  opacity: 0.5;
-}
-
-.corner-views:hover {
-  opacity: 1;
-}
-
-.scene3d-fail {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #ff8f7a;
-  font-size: 12px;
-}
-
-.scene3d-ready {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.only-controls {
-  position: absolute;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  z-index: 3;
-  display: flex;
-  gap: 8px;
-}
-
-.only-controls .only-control {
-  position: static;
-  transform: none;
-}
-
-/* Which side is which. Screen space, one per viewport: the two cameras are
-   inside two separate copies of the line, so there is nowhere in the world
-   that can carry these. */
-.scene3d-caption {
-  position: absolute;
-  top: 26px;
-  width: 50%;
-  z-index: 3;
-  text-align: center;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: rgba(196, 214, 230, 0.58);
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.95);
-  pointer-events: none;
-}
-
-.scene3d-caption--left {
-  left: 0;
-}
-
-.scene3d-caption--right {
-  left: 50%;
-}
 
 /* A hairline, so two shots of the same line read as a comparison rather than
    as one wide shot with a seam in it. */
@@ -145,17 +19,205 @@
   pointer-events: none;
 }
 
-/* The only text in the product. One line, describing this moment. */
-.scene3d-say {
+
+
+/* ---- the on-screen layer ---------------------------------------------- */
+/* Everything here is small, mono and quiet. It is instrumentation around a
+   picture, not a dashboard: if it competes with the trains it has failed. */
+
+.hud-shared {
   position: absolute;
+  top: 16px;
   left: 50%;
-  bottom: 68px;
   transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(196, 214, 230, 0.5);
+  pointer-events: none;
+}
+
+.hud-line-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: rgba(210, 226, 240, 0.9);
+  color: #10141a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.hud-shared-sep {
+  width: 1px;
+  height: 11px;
+  background: rgba(150, 180, 205, 0.28);
+}
+
+.hud-shared-tick {
+  color: rgba(196, 214, 230, 0.32);
+}
+
+.panel-head {
+  position: absolute;
+  top: 52px;
+  width: 50%;
   z-index: 3;
+  text-align: center;
+  pointer-events: none;
+}
+
+.panel-head--left { left: 0; }
+.panel-head--right { left: 50%; }
+
+.panel-title {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: rgba(214, 228, 240, 0.82);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.95);
+}
+
+.panel-sub {
+  margin-top: 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: rgba(180, 200, 218, 0.42);
+}
+
+/* The number the whole thing is about. */
+.panel-cv {
+  position: absolute;
+  top: 92px;
+  width: 50%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.panel-cv--left { left: 0; }
+.panel-cv--right { left: 50%; }
+
+.cv-label {
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  color: rgba(170, 192, 212, 0.4);
+}
+
+.cv-value {
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(232, 240, 248, 0.9);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.95);
+}
+
+.cv-value--good { color: rgba(150, 226, 190, 0.95); }
+
+.panel-inst {
+  position: absolute;
+  bottom: 84px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: rgba(196, 214, 230, 0.62);
+  pointer-events: none;
+}
+
+.panel-inst--left { left: 26px; }
+.panel-inst--right { left: calc(50% + 26px); }
+
+.inst-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.inst-num {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(226, 238, 248, 0.88);
+}
+
+.inst-unit {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(170, 192, 212, 0.45);
+}
+
+.inst-row--next {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(178, 200, 218, 0.5);
+}
+
+.inst-eta {
+  font-variant-numeric: tabular-nums;
+  color: rgba(196, 214, 230, 0.68);
+}
+
+/* Learned panel only. */
+.panel-reason {
+  position: absolute;
+  right: 26px;
+  bottom: 84px;
+  max-width: 42%;
+  z-index: 3;
+  text-align: right;
   font-size: 11px;
   letter-spacing: 0.03em;
-  color: rgba(200, 218, 232, 0.72);
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
+  color: rgba(150, 226, 190, 0.78);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.95);
   pointer-events: none;
-  white-space: nowrap;
+}
+
+.line-picker {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.line-row {
+  display: flex;
+  gap: 6px;
+}
+
+.line-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(170, 195, 215, 0.2);
+  background: rgba(14, 18, 22, 0.5);
+  color: rgba(180, 200, 218, 0.6);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.line-btn:hover { border-color: rgba(170, 195, 215, 0.45); }
+
+.line-btn--on {
+  background: rgba(210, 226, 240, 0.92);
+  border-color: rgba(210, 226, 240, 0.92);
+  color: #10141a;
+  font-weight: 700;
+}
+
+.line-note {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(180, 200, 218, 0.45);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9);
 }
