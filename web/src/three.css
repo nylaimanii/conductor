@@ -86,3 +86,18 @@
   height: 1px;
   opacity: 0;
 }
+
+.only-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+}
+
+.only-controls .only-control {
+  position: static;
+  transform: none;
+}

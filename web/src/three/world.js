@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 
 // The 3D world. A dark ground plane, the lines as physical raised tracks laid
 // on it, and trains as simple lit volumes above them.
@@ -18,7 +19,7 @@ export const COLORS = {
   ground: 0x161b20,
   // Tracks are lit surfaces, not signs: desaturated, dim, and well below the
   // trains in brightness so nothing on the plane competes with them.
-  track: 0x39434c,
+  track: 0x333c44,
   station: 0x4d5862,
   trainBody: 0xdde6ee,
   trainEmissive: 0x2a3a45,
@@ -35,10 +36,10 @@ export function makeProjector(bounds) {
 
 export function buildLights(scene) {
   // Very low ambient: the scene is near black and the trains carry the light.
-  scene.add(new THREE.AmbientLight(0x35485a, 0.75))
+  scene.add(new THREE.AmbientLight(0x2c3d4c, 0.42))
 
   // Key, from high and to one side, casting the soft shadows onto the plane.
-  const key = new THREE.DirectionalLight(0xdfeaf5, 2.1)
+  const key = new THREE.DirectionalLight(0xdfeaf5, 1.9)
   key.position.set(40, 70, 30)
   key.castShadow = true
   key.shadow.mapSize.set(2048, 2048)
@@ -60,15 +61,42 @@ export function buildLights(scene) {
   scene.add(rim)
 
   // A faint sky/ground bounce so the tops of things are not flat.
-  scene.add(new THREE.HemisphereLight(0x44607e, 0x0a0e12, 0.6))
+  scene.add(new THREE.HemisphereLight(0x33485f, 0x070a0d, 0.3))
 
   return key
+}
+
+function gridTexture() {
+  const S = 256
+  const c = document.createElement('canvas')
+  c.width = S
+  c.height = S
+  const g = c.getContext('2d')
+  g.fillStyle = '#0d1114'
+  g.fillRect(0, 0, S, S)
+  // Barely there. Dark grey on near black: enough to read the plane receding,
+  // not enough to read as a chart.
+  g.strokeStyle = 'rgba(150,180,205,0.055)'
+  g.lineWidth = 1
+  g.beginPath()
+  g.moveTo(0.5, 0)
+  g.lineTo(0.5, S)
+  g.moveTo(0, 0.5)
+  g.lineTo(S, 0.5)
+  g.stroke()
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(140, 140)
+  tex.anisotropy = 8
+  return tex
 }
 
 export function buildGround(scene) {
   const geo = new THREE.PlaneGeometry(1400, 1400)
   const mat = new THREE.MeshStandardMaterial({
-    color: COLORS.ground,
+    map: gridTexture(),
+    color: 0xffffff,
     roughness: 0.82,
     metalness: 0.0,
   })
@@ -130,8 +158,11 @@ export function buildTrack(scene, stations, project) {
 // Trains as one instanced mesh. A rounded-ish body: a box is enough at this
 // scale, and the rim light does the shaping.
 export function buildTrains(scene, count) {
-  const geo = new THREE.BoxGeometry(2.6, 0.85, 1.0)
-  // Softens the silhouette a little without a bevel modifier.
+  // Rounded on every edge. A hard box reads as programmer art at this scale,
+  // and since the trains are the only bright thing in the frame their
+  // silhouette is doing most of the work. Segments kept low: the bevel only
+  // has to catch the rim light, not survive a close inspection.
+  const geo = new RoundedBoxGeometry(2.6, 0.85, 1.0, 4, 0.22)
   geo.translate(0, 0.425, 0)
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.trainBody,
@@ -172,8 +203,8 @@ export function buildContacts(scene, count) {
 // Riders: small quiet volumes beside a platform. Sparse on purpose, capped
 // low, no labels. If in doubt there are fewer of them.
 export function buildRiders(scene, count) {
-  const geo = new THREE.BoxGeometry(0.16, 0.42, 0.16)
-  geo.translate(0, 0.21, 0)
+  const geo = new RoundedBoxGeometry(0.18, 0.44, 0.18, 2, 0.06)
+  geo.translate(0, 0.22, 0)
   const mat = new THREE.MeshStandardMaterial({
     color: COLORS.rider,
     roughness: 0.9,
@@ -216,6 +247,37 @@ export function buildLabel(scene, text, position) {
   sprite.position.copy(position)
   sprite.position.y = 3.4
   sprite.scale.set(2.1, 2.1, 1)
+  scene.add(sprite)
+  return sprite
+}
+
+
+// A wider label for the two captions in the comparison. Drawn into a canvas
+// whose aspect matches the sprite, because stretching the square line-letter
+// texture to fit a word distorts the glyphs into mush.
+export function buildCaption(scene, text, position) {
+  const W = 640
+  const H = 128
+  const c = document.createElement('canvas')
+  c.width = W
+  c.height = H
+  const g = c.getContext('2d')
+  g.clearRect(0, 0, W, H)
+  g.font = '500 52px "JetBrains Mono", ui-monospace, monospace'
+  g.fillStyle = 'rgba(200,216,230,0.66)'
+  g.textAlign = 'center'
+  g.textBaseline = 'middle'
+  g.fillText(text, W / 2, H / 2 + 2)
+
+  const tex = new THREE.CanvasTexture(c)
+  tex.anisotropy = 8
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.9 })
+  )
+  sprite.position.copy(position)
+  sprite.position.y = 5.5
+  // Aspect preserved: 640x128 is 5:1, so the sprite is too.
+  sprite.scale.set(20, 4, 1)
   scene.add(sprite)
   return sprite
 }
