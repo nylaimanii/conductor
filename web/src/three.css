@@ -101,3 +101,61 @@
   position: static;
   transform: none;
 }
+
+/* Which side is which. Screen space, one per viewport: the two cameras are
+   inside two separate copies of the line, so there is nowhere in the world
+   that can carry these. */
+.scene3d-caption {
+  position: absolute;
+  top: 26px;
+  width: 50%;
+  z-index: 3;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(196, 214, 230, 0.58);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+}
+
+.scene3d-caption--left {
+  left: 0;
+}
+
+.scene3d-caption--right {
+  left: 50%;
+}
+
+/* A hairline, so two shots of the same line read as a comparison rather than
+   as one wide shot with a seam in it. */
+.scene3d-split {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    rgba(150, 180, 205, 0) 0%,
+    rgba(150, 180, 205, 0.16) 18%,
+    rgba(150, 180, 205, 0.16) 82%,
+    rgba(150, 180, 205, 0) 100%
+  );
+  pointer-events: none;
+}
+
+/* The only text in the product. One line, describing this moment. */
+.scene3d-say {
+  position: absolute;
+  left: 50%;
+  bottom: 68px;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: rgba(200, 218, 232, 0.72);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+  white-space: nowrap;
+}

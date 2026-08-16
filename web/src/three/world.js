@@ -40,16 +40,19 @@ export function buildLights(scene) {
 
   // Key, from high and to one side, casting the soft shadows onto the plane.
   const key = new THREE.DirectionalLight(0xdfeaf5, 1.9)
-  key.position.set(40, 70, 30)
+  key.position.set(70, 120, 50)
   key.castShadow = true
   key.shadow.mapSize.set(2048, 2048)
   key.shadow.camera.near = 1
-  key.shadow.camera.far = 260
-  const s = 90
-  key.shadow.camera.left = -s
-  key.shadow.camera.right = s
-  key.shadow.camera.top = s
-  key.shadow.camera.bottom = -s
+  key.shadow.camera.far = 520
+  // Wide enough to hold both systems at once. They stand far enough apart that
+  // neither is ever in the other's shot, and a frustum sized for one of them
+  // leaves the other with no shadows at all. Kept as tight as that separation
+  // allows, because every unit of slack here is spent out of the depth map.
+  key.shadow.camera.left = -50
+  key.shadow.camera.right = 50
+  key.shadow.camera.top = 155
+  key.shadow.camera.bottom = -155
   key.shadow.bias = -0.0012
   key.shadow.radius = 4
   scene.add(key)
@@ -72,11 +75,14 @@ function gridTexture() {
   c.width = S
   c.height = S
   const g = c.getContext('2d')
-  g.fillStyle = '#0e1316'
+  // All but black. The ground is the thing light does not reach: at a ride
+  // along height a lit floor fills half the frame and flattens everything on
+  // it, and the trains and rails stop being the brightest objects in the shot.
+  g.fillStyle = '#08090b'
   g.fillRect(0, 0, S, S)
   // Barely there. Dark grey on near black: enough to read the plane receding,
   // not enough to read as a chart.
-  g.strokeStyle = 'rgba(160,195,225,0.10)'
+  g.strokeStyle = 'rgba(150,185,215,0.055)'
   g.lineWidth = 1
   g.beginPath()
   g.moveTo(0.5, 0)
@@ -101,8 +107,8 @@ function poolTexture() {
   c.height = S
   const g = c.getContext('2d')
   const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
-  grad.addColorStop(0, 'rgba(120,165,205,0.07)')
-  grad.addColorStop(0.45, 'rgba(90,130,170,0.03)')
+  grad.addColorStop(0, 'rgba(120,165,205,0.035)')
+  grad.addColorStop(0.45, 'rgba(90,130,170,0.015)')
   grad.addColorStop(1, 'rgba(0,0,0,0)')
   g.fillStyle = grad
   g.fillRect(0, 0, S, S)
@@ -131,8 +137,10 @@ export function buildGround(scene) {
   const geo = new THREE.PlaneGeometry(1400, 1400)
   const mat = new THREE.MeshStandardMaterial({
     map: gridTexture(),
-    color: 0xffffff,
-    roughness: 0.82,
+    // Multiplied down again on top of the near black map, so even the key
+    // light's pool on the plane stays below the ballast.
+    color: 0x8f9498,
+    roughness: 0.95,
     metalness: 0.0,
   })
   const mesh = new THREE.Mesh(geo, mat)
@@ -150,21 +158,40 @@ export function buildGround(scene) {
 // catch the light, and ties at a regular interval. The ties are the point.
 // Streaming underneath at speed they are what sells motion, the way lane
 // markings do in the reference, and no amount of camera work substitutes.
+// Half the distance between the two ways. A line is run out and back over one
+// polyline in the run files, so on a single centreline a train going one way
+// and a train coming the other pass through each other. From an overhead
+// survey that was a smudge; from a cab it is the shot falling apart. Two ways
+// costs one more pair of rails and fixes it, and gives the ride along the
+// thing that most says moving: something going the other way, close.
+export const WAY_OFFSET = 1.3
+
+// Which way a train sits, given the direction it is heading. Left hand of
+// travel, consistently, so the two ways never cross.
+export function wayOffset(hx, hz, out) {
+  return out.set(-hz * WAY_OFFSET, 0, hx * WAY_OFFSET)
+}
+
 export function buildTrack(scene, stations, project) {
   const group = new THREE.Group()
 
   const GAUGE = 1.05
   const TIE_EVERY = 1.5
+  const BED = WAY_OFFSET * 2 + GAUGE + 0.9
 
   const ballastMat = new THREE.MeshStandardMaterial({
     color: 0x242c33,
     roughness: 1.0,
     metalness: 0.0,
   })
+  // Metal, but not fully: with no environment to reflect, metalness near one
+  // renders as black except where a highlight happens to land, and against a
+  // near black ground the rails simply vanish. Half metal keeps a diffuse
+  // component, so the ways read as two bright lines running to the horizon.
   const railMat = new THREE.MeshStandardMaterial({
-    color: 0x9fb3c4,
-    roughness: 0.22,
-    metalness: 0.85,
+    color: 0xb4c6d4,
+    roughness: 0.28,
+    metalness: 0.45,
   })
   const tieMat = new THREE.MeshStandardMaterial({
     color: 0x2e363d,
@@ -185,7 +212,7 @@ export function buildTrack(scene, stations, project) {
     tieTotal += n
   }
 
-  const tieGeo = new THREE.BoxGeometry(0.34, 0.1, GAUGE + 0.62)
+  const tieGeo = new THREE.BoxGeometry(0.34, 0.1, BED - 0.5)
   const ties = new THREE.InstancedMesh(tieGeo, tieMat, Math.max(1, tieTotal))
   ties.receiveShadow = true
   const dummy = new THREE.Object3D()
@@ -197,23 +224,24 @@ export function buildTrack(scene, stations, project) {
     const mid = a.clone().add(b).multiplyScalar(0.5)
 
     // Ballast: a low wide bed the track sits on.
-    const bal = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.1, GAUGE + 0.75), ballastMat)
+    const bal = new THREE.Mesh(new THREE.BoxGeometry(len + 0.4, 0.1, BED), ballastMat)
     bal.position.set(mid.x, 0.07, mid.z)
     bal.rotation.y = yaw
     bal.receiveShadow = true
     group.add(bal)
 
-    // Two rails, raised above the ties, metallic so they pick up a highlight
-    // and read as the brightest thing on the plane after the trains.
-    for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 0.6, 0.11, 0.13), railMat)
-      const nx = Math.sin(yaw) * side * (GAUGE / 2)
-      const nz = Math.cos(yaw) * side * (GAUGE / 2)
-      rail.position.set(mid.x + nx, 0.245, mid.z + nz)
-      rail.rotation.y = yaw
-      rail.castShadow = false
-      rail.receiveShadow = true
-      group.add(rail)
+    // Four rails, two ways, raised above the ties, metallic so they pick up a
+    // highlight and read as the brightest thing on the plane after the trains.
+    for (const way of [-1, 1]) {
+      for (const side of [-1, 1]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 0.6, 0.11, 0.13), railMat)
+        const off = way * WAY_OFFSET + side * (GAUGE / 2)
+        rail.position.set(mid.x + Math.sin(yaw) * off, 0.245, mid.z + Math.cos(yaw) * off)
+        rail.rotation.y = yaw
+        rail.castShadow = false
+        rail.receiveShadow = true
+        group.add(rail)
+      }
     }
 
     for (let k = 0; k < n; k++) {
@@ -254,6 +282,12 @@ export function buildTrains(scene, count) {
     metalness: 0.25,
   })
   const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, count))
+  // Per instance colour: a train that has closed on the one ahead dims and
+  // warms. The object is the readout, so there is no label anywhere.
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(Math.max(1, count) * 3).fill(1),
+    3
+  )
   mesh.castShadow = true
   mesh.receiveShadow = false
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
@@ -333,33 +367,7 @@ export function buildLabel(scene, text, position) {
   return sprite
 }
 
-
-// A wider label for the two captions in the comparison. Drawn into a canvas
-// whose aspect matches the sprite, because stretching the square line-letter
-// texture to fit a word distorts the glyphs into mush.
-export function buildCaption(scene, text, position) {
-  const W = 640
-  const H = 128
-  const c = document.createElement('canvas')
-  c.width = W
-  c.height = H
-  const g = c.getContext('2d')
-  g.clearRect(0, 0, W, H)
-  g.font = '500 52px "JetBrains Mono", ui-monospace, monospace'
-  g.fillStyle = 'rgba(200,216,230,0.66)'
-  g.textAlign = 'center'
-  g.textBaseline = 'middle'
-  g.fillText(text, W / 2, H / 2 + 2)
-
-  const tex = new THREE.CanvasTexture(c)
-  tex.anisotropy = 8
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.9 })
-  )
-  sprite.position.copy(position)
-  sprite.position.y = 5.5
-  // Aspect preserved: 640x128 is 5:1, so the sprite is too.
-  sprite.scale.set(20, 4, 1)
-  scene.add(sprite)
-  return sprite
-}
+// The two captions used to be sprites hung in the world. From a ride along
+// camera a sprite parked next to a terminal is off screen almost always, and
+// when it is on screen it is somewhere different in each viewport. They live
+// in the DOM now, one per viewport, anchored to the screen.
